@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	loginButtonTypeAttrVal = `submit`
+	submitButtonTypeAttrVal = `submit`
 )
 
 func getUserAndPasswordInputNodes(ctx context.Context) (userNode *cdp.Node, passwordNode *cdp.Node, err error) {
@@ -62,26 +62,7 @@ func getUserAndPasswordInputNodes(ctx context.Context) (userNode *cdp.Node, pass
 }
 
 func getLoginNode(ctx context.Context) (loginNode *cdp.Node, err error) {
-	nodes, err := common.GetAllButtonNodes(ctx)
-	if err != nil {
-		return loginNode, fmt.Errorf("unable to get all button nodes: %+v", err)
-	}
-
-	nodesAttrsMap := common.GetNodesAttrsMap(nodes)
-	for node, attrs := range nodesAttrsMap {
-		typeVal := attrs[config.TypeAttrName]
-		if typeVal != loginButtonTypeAttrVal {
-			continue
-		}
-		var text string
-		chromedp.Run(ctx,
-			chromedp.Text(config.ButtonNodeSel, &text, chromedp.ByQuery, chromedp.FromNode(node.Parent)),
-		)
-		if text == config.Config.LoginButtonText {
-			return node, nil
-		}
-	}
-	return loginNode, fmt.Errorf("no button node found has type attr of \"%s\" and text of \"%s\"", loginButtonTypeAttrVal, config.Config.LoginButtonText)
+	return getSubmitButtonNode(ctx, config.Config.LoginButtonText)
 }
 
 func navigateToPixivSiteAndClickLogin(ctx context.Context) (err error) {

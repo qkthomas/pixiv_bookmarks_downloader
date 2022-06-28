@@ -69,7 +69,7 @@ func PrintNodesAltAndSrc(nodes []*cdp.Node) {
 }
 
 func saveScreenshotsOfNodes(ctx context.Context, nodes []*cdp.Node,
-	howToSave func([]byte, string)) {
+	howToSave func([]byte, string)) (err error) {
 	nodeMap := GetNodesAttrsMap(nodes)
 	for _, imgNode := range nodes {
 		parentNode := imgNode.Parent
@@ -80,11 +80,15 @@ func saveScreenshotsOfNodes(ctx context.Context, nodes []*cdp.Node,
 		}
 		filename := path.Base(src)
 		var buf []byte
-		chromedp.Run(ctx,
+		err = chromedp.Run(ctx,
 			chromedp.Screenshot(config.ThumbnailNodeSel, &buf, chromedp.FromNode(parentNode)),
 		)
+		if err != nil {
+			return fmt.Errorf("failed to take screenshot of node: %+v", err)
+		}
 		howToSave(buf, filename)
 	}
+	return nil
 }
 
 func SaveThumbnailsImgsToFile(ctx context.Context, imgNodes []*cdp.Node) {
@@ -96,7 +100,10 @@ func SaveThumbnailsImgsToFile(ctx context.Context, imgNodes []*cdp.Node) {
 		}
 		fmt.Printf("%s wrote %s\n", config.InfMsgPrefix, filepath)
 	}
-	saveScreenshotsOfNodes(ctx, imgNodes, howToSave)
+	err := saveScreenshotsOfNodes(ctx, imgNodes, howToSave)
+	if err != nil {
+		fmt.Printf("%s %+v\n", config.ErrorMsgPrefix, err)
+	}
 }
 
 func StartSavingResponseToFile(wg *sync.WaitGroup, ctx context.Context, requestID network.RequestID, filepath string) {
@@ -127,6 +134,16 @@ func getAllNodes(ctx context.Context, sel string) (nodes []*cdp.Node, err error)
 	err = chromedp.Run(ctx,
 		chromedp.Nodes(sel, &nodes),
 	)
+	nodeMap := make(map[*cdp.Node]struct{})
+	for _, node := range nodes {
+		nodeMap[node] = struct{}{}
+	}
+	nodes = []*cdp.Node{}
+	for node := range nodeMap {
+		if node.LocalName == sel {
+			nodes = append(nodes, node)
+		}
+	}
 	return nodes, err
 }
 

@@ -54,6 +54,28 @@ func listenForNetworkEventAndDownloadBookmarkThumbnails(ctx context.Context) {
 	common.ListenForNetworkEventAndDownloadImages(ctx, writeFilesWg, urlMatcher)
 }
 
+func getSubmitButtonNode(ctx context.Context, buttonText string) (submitButtonNode *cdp.Node, err error) {
+	nodes, err := common.GetAllButtonNodes(ctx)
+	if err != nil {
+		return submitButtonNode, fmt.Errorf("unable to get all button nodes: %+v", err)
+	}
+	nodesAttrsMap := common.GetNodesAttrsMap(nodes)
+	for node, attrs := range nodesAttrsMap {
+		typeVal := attrs[config.TypeAttrName]
+		if typeVal != submitButtonTypeAttrVal {
+			continue
+		}
+		var text string
+		chromedp.Run(ctx,
+			chromedp.Text(config.ButtonNodeSel, &text, chromedp.ByQuery, chromedp.FromNode(node.Parent)),
+		)
+		if text == buttonText {
+			return node, nil
+		}
+	}
+	return submitButtonNode, fmt.Errorf("no button node found has type attr of \"%s\" and text of \"%s\"", submitButtonTypeAttrVal, buttonText)
+}
+
 // func clickOnFigureNodeAndDownloadFullResImgs(ctx context.Context, node *cdp.Node) {
 
 // }
@@ -76,37 +98,6 @@ func listenForNetworkEventAndDownloadBookmarkThumbnails(ctx context.Context) {
 // func clickOnBookmarkImgNodesAndDownloadFullResImgs(ctx context.Context, nodes []*cdp.Node) {
 
 // }
-
-func logoutPixiv(ctx context.Context, screenshotBuf *[]byte) {
-
-	dropdownMenuSel := `#root > div:nth-child(2) > div.sc-12xjnzy-0.dIGjtZ > div:nth-child(1) > div:nth-child(1) > div > div.sc-4nj1pr-3.bWvcqZ > div.sc-4nj1pr-4.jlGtrR > div.sc-pkfh0q-0.kYDpSN > div > button > div`
-	logoutButtonSel := `body > div:nth-child(30) > div > div > div > div > ul > li:nth-child(20) > button`
-	confirmButtonSel := `body > div:nth-child(30) > div > div > div > div > div > div.sc-hpll47-0.gsvGzp > div.sc-1e6u418-2.fbaJrt > div > div > button.sc-13xx43k-0.sc-13xx43k-1.BSrHG.eGjXJv`
-
-	bookmarkPageUrl := fmt.Sprintf("%s/users/%d/bookmarks/artworks", config.PixivSiteUrl, config.Config.UserID)
-	err := chromedp.Run(ctx,
-		// go to bookmarks
-		chromedp.Navigate(bookmarkPageUrl),
-		// to logout
-		// open dropdown menu
-		chromedp.WaitVisible(dropdownMenuSel),
-		chromedp.Click(dropdownMenuSel, chromedp.NodeVisible),
-		// click logout
-		chromedp.WaitVisible(logoutButtonSel),
-		chromedp.Click(logoutButtonSel, chromedp.NodeVisible),
-		// click confirm logout
-		chromedp.WaitVisible(confirmButtonSel),
-		chromedp.Click(confirmButtonSel, chromedp.NodeVisible),
-
-		// just wait
-		chromedp.Sleep(2*time.Second),
-		// take screenshot
-		chromedp.FullScreenshot(screenshotBuf, 90),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
 
 func printBookmarkPage(ctx context.Context, bookmarkPage string, screenshotBuf *[]byte) (nextBookmarkPage string) {
 	var thumbnailNodes []*cdp.Node
@@ -174,23 +165,26 @@ func DoPixiv(ctx context.Context) {
 	// 	i++
 	// }
 
-	err = chromedp.Run(ctx,
-		chromedp.Navigate(`https://www.pixiv.net/artworks/92843638`),
-		chromedp.Sleep(time.Second*5),
-	)
+	// err = chromedp.Run(ctx,
+	// 	chromedp.Navigate(`https://www.pixiv.net/artworks/92843638`),
+	// 	chromedp.Sleep(time.Second*5),
+	// )
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// err = downloadArtwork(ctx)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// fmt.Println("waiting writing files to be done")
+	// writeFilesWg.Wait()
+
+	err = logoutPixiv(ctx, &buf3)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	err = downloadArtwork(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("waiting writing files to be done")
-	writeFilesWg.Wait()
-
-	logoutPixiv(ctx, &buf3)
 
 	if err := ioutil.WriteFile(buf1Filename, buf1, 0644); err != nil {
 		log.Fatal(err)
