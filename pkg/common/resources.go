@@ -19,53 +19,36 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-package config
+package common
 
 import (
-	"regexp"
-	"time"
+	"context"
+	"sync"
+
+	"github.com/chromedp/cdproto/network"
+	"github.com/chromedp/chromedp"
 )
 
-const (
-	//some urls
-	PixivSiteUrl = `https://www.pixiv.net`
+func ListenForNetworkEventAndDownloadImages(ctx context.Context, wg *sync.WaitGroup,
+	urlMatcher func(string) (string, bool)) {
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		switch ev := ev.(type) {
 
-	//some selectors
-	ThumbnailNodeSel = `img.sc-rp5asc-10.erYaF`
-	FigureNodeSel    = `figure.sc-1yvhotl-3.jUCdwp`
-	InputNodeSel     = `input`
-	ButtonNodeSel    = `button`
-	ImgNodeSel       = `img`
-	AnchorNodeSel    = `a`
+		case *network.EventResponseReceived:
+			resp := ev.Response
+			if len(resp.Headers) != 0 && string(ev.Type) == `Image` {
+				// log.Printf("received \"%s\", requestID: %s, resource url: %s\n", ev.Type, ev.RequestID, resp.URL)
+			} else {
+				return
+			}
 
-	//some attribute names/keys
-	PlaceHolderAttrName = `placeholder`
-	TypeAttrName        = `type`
-	RelAttrName         = `rel`
-	HrefAttrName        = `href`
-	ClassAttrName       = `class`
-	SrcAttrName         = `src`
-	AltAttrName         = `alt`
+			filePath, toDownload := urlMatcher(resp.URL)
+			if !toDownload {
+				return
+			}
 
-	//some directory names
-	SavedFileLocation      = `saved`
-	ThumbnailsFileLocation = `thumbnails`
-
-	ErrorMsgPrefix = `error:`
-	InfMsgPrefix   = `info:`
-
-	//time and duration
-	SavingRespWaitDura = time.Second * 6
-
-	//some file permission
-	WriteFilePermission = 0644
-
-	//some regex
-	artworkerImgReStr = `(\d+)_p(\d+)\.(jpg|png|jpeg|gif)+` //this only match full res img
-	artworkIDReStr    = `(\d+)_p`                           //this also match thumbnails
-)
-
-var (
-	ArtworkImgRe = regexp.MustCompile(artworkerImgReStr)
-	ArtworkIDRe  = regexp.MustCompile(artworkIDReStr)
-)
+			StartSavingResponseToFile(wg, ctx, ev.RequestID, filePath)
+		}
+		// other needed network Event
+	})
+}

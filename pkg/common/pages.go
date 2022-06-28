@@ -19,53 +19,26 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-package config
+package common
 
 import (
-	"regexp"
-	"time"
+	"context"
+
+	"github.com/chromedp/cdproto/runtime"
+	"github.com/chromedp/chromedp"
 )
 
-const (
-	//some urls
-	PixivSiteUrl = `https://www.pixiv.net`
-
-	//some selectors
-	ThumbnailNodeSel = `img.sc-rp5asc-10.erYaF`
-	FigureNodeSel    = `figure.sc-1yvhotl-3.jUCdwp`
-	InputNodeSel     = `input`
-	ButtonNodeSel    = `button`
-	ImgNodeSel       = `img`
-	AnchorNodeSel    = `a`
-
-	//some attribute names/keys
-	PlaceHolderAttrName = `placeholder`
-	TypeAttrName        = `type`
-	RelAttrName         = `rel`
-	HrefAttrName        = `href`
-	ClassAttrName       = `class`
-	SrcAttrName         = `src`
-	AltAttrName         = `alt`
-
-	//some directory names
-	SavedFileLocation      = `saved`
-	ThumbnailsFileLocation = `thumbnails`
-
-	ErrorMsgPrefix = `error:`
-	InfMsgPrefix   = `info:`
-
-	//time and duration
-	SavingRespWaitDura = time.Second * 6
-
-	//some file permission
-	WriteFilePermission = 0644
-
-	//some regex
-	artworkerImgReStr = `(\d+)_p(\d+)\.(jpg|png|jpeg|gif)+` //this only match full res img
-	artworkIDReStr    = `(\d+)_p`                           //this also match thumbnails
-)
-
-var (
-	ArtworkImgRe = regexp.MustCompile(artworkerImgReStr)
-	ArtworkIDRe  = regexp.MustCompile(artworkIDReStr)
-)
+func ScrollToButtomOfPage(ctx context.Context) (err error) {
+	return chromedp.Run(ctx,
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			_, exp, err := runtime.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`).Do(ctx)
+			if err != nil {
+				return err
+			}
+			if exp != nil {
+				return exp
+			}
+			return nil
+		}),
+	)
+}

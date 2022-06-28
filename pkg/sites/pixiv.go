@@ -31,8 +31,6 @@ import (
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
-	"github.com/chromedp/cdproto/network"
-	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/common"
 	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/config"
@@ -42,25 +40,18 @@ var (
 	writeFilesWg = new(sync.WaitGroup)
 )
 
-func listenForNetworkEventAndDownloadArtwork(ctx context.Context) {
-	chromedp.ListenTarget(ctx, func(ev interface{}) {
-		switch ev := ev.(type) {
-
-		case *network.EventResponseReceived:
-			resp := ev.Response
-			if len(resp.Headers) != 0 && string(ev.Type) == `Image` {
-				log.Printf("received \"%s\", requestID: %s, resource url: %s\n", ev.Type, ev.RequestID, resp.URL)
-			}
-			filenamePrefix := common.Get1stGroupMatch(resp.URL, config.ArtworkIDRe)
-			if filenamePrefix == "" {
-				return
-			}
-			filename := path.Base(resp.URL)
-			filePath := fmt.Sprintf("%s/%s", config.SavedFileLocation, filename)
-			common.StartSavingResponseToFile(writeFilesWg, ctx, ev.RequestID, filePath)
+func listenForNetworkEventAndDownloadBookmarkThumbnails(ctx context.Context) {
+	urlMatcher := func(url string) (filePath string, isMatched bool) {
+		filenamePrefix := common.Get1stGroupMatch(url, config.ArtworkIDRe)
+		if filenamePrefix == "" {
+			return filePath, false
 		}
-		// other needed network Event
-	})
+		filename := path.Base(url)
+		filePath = fmt.Sprintf("%s/%s", config.SavedFileLocation, filename)
+		return filePath, true
+	}
+
+	common.ListenForNetworkEventAndDownloadImages(ctx, writeFilesWg, urlMatcher)
 }
 
 // func clickOnFigureNodeAndDownloadFullResImgs(ctx context.Context, node *cdp.Node) {
@@ -92,7 +83,10 @@ func logoutPixiv(ctx context.Context, screenshotBuf *[]byte) {
 	logoutButtonSel := `body > div:nth-child(30) > div > div > div > div > ul > li:nth-child(20) > button`
 	confirmButtonSel := `body > div:nth-child(30) > div > div > div > div > div > div.sc-hpll47-0.gsvGzp > div.sc-1e6u418-2.fbaJrt > div > div > button.sc-13xx43k-0.sc-13xx43k-1.BSrHG.eGjXJv`
 
+	bookmarkPageUrl := fmt.Sprintf("%s/users/%d/bookmarks/artworks", config.PixivSiteUrl, config.Config.UserID)
 	err := chromedp.Run(ctx,
+		// go to bookmarks
+		chromedp.Navigate(bookmarkPageUrl),
 		// to logout
 		// open dropdown menu
 		chromedp.WaitVisible(dropdownMenuSel),
@@ -118,24 +112,25 @@ func printBookmarkPage(ctx context.Context, bookmarkPage string, screenshotBuf *
 	var thumbnailNodes []*cdp.Node
 	var nextPageButtons []*cdp.Node
 
-	listenForNetworkEventAndDownloadArtwork(ctx)
+	listenForNetworkEventAndDownloadBookmarkThumbnails(ctx)
 
 	err := chromedp.Run(ctx,
 		// go to bookmarks
 		chromedp.Navigate(bookmarkPage),
 		// just wait
 		chromedp.Sleep(5*time.Second),
-		// scroll to the bottom
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			_, exp, err := runtime.Evaluate(`window.scrollTo(0,document.body.scrollHeight);`).Do(ctx)
-			if err != nil {
-				return err
-			}
-			if exp != nil {
-				return exp
-			}
-			return nil
-		}),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// scroll to the bottom
+	err = common.ScrollToButtomOfPage(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = chromedp.Run(ctx,
 		// just wait
 		chromedp.Sleep(2*time.Second),
 		// take screenshot
@@ -171,12 +166,25 @@ func DoPixiv(ctx context.Context) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	maxNum := 1
-	bookmarkPageUrl := fmt.Sprintf("%s/users/%d/bookmarks/artworks", config.PixivSiteUrl, config.Config.UserID)
-	i := 1
-	for bookmarkPageUrl != "" && i <= maxNum {
-		bookmarkPageUrl = printBookmarkPage(ctx, bookmarkPageUrl, &buf2)
-		i++
+	// maxNum := 1
+	// bookmarkPageUrl := fmt.Sprintf("%s/users/%d/bookmarks/artworks", config.PixivSiteUrl, config.Config.UserID)
+	// i := 1
+	// for bookmarkPageUrl != "" && i <= maxNum {
+	// 	bookmarkPageUrl = printBookmarkPage(ctx, bookmarkPageUrl, &buf2)
+	// 	i++
+	// }
+
+	err = chromedp.Run(ctx,
+		chromedp.Navigate(`https://www.pixiv.net/artworks/92843638`),
+		chromedp.Sleep(time.Second*5),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = downloadArtwork(ctx)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	fmt.Println("waiting writing files to be done")

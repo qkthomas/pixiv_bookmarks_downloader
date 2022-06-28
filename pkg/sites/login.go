@@ -127,6 +127,7 @@ func loginPixiv(ctx context.Context, screenshotBuf *[]byte) (err error) {
 
 	err = chromedp.Run(ctx,
 		chromedp.Click(config.ButtonNodeSel, chromedp.ByQuery, chromedp.FromNode(loginNode.Parent)),
+		chromedp.WaitVisible(`img.sc-1yo2nn9-1.bBQkQw`),
 		// just wait
 		chromedp.Sleep(3*time.Second),
 		// take screenshot

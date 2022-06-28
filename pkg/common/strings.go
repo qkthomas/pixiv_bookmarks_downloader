@@ -26,9 +26,14 @@ import (
 )
 
 func Get1stGroupMatch(str string, re *regexp.Regexp) string {
+	return GetGroupMatch(str, re, 1)
+}
+
+func GetGroupMatch(str string, re *regexp.Regexp, groupIdx int) string {
 	matches := re.FindStringSubmatch(str)
 	if len(matches) < re.NumSubexp()+1 {
+		// no match
 		return ""
 	}
-	return matches[1]
+	return matches[groupIdx]
 }

@@ -42,7 +42,7 @@ func GetHref(node *cdp.Node) string {
 	for i := 0; i < attrsLen; i += 2 {
 		attrMap[node.Attributes[i]] = node.Attributes[i+1]
 	}
-	return attrMap["href"]
+	return attrMap[config.HrefAttrName]
 }
 
 func GetNodesAttrsMap(nodes []*cdp.Node) map[*cdp.Node]map[string]string {
@@ -63,7 +63,7 @@ func PrintNodesAltAndSrc(nodes []*cdp.Node) {
 	nodeMap := GetNodesAttrsMap(nodes)
 	nodeCount := 1
 	for node, attrMap := range nodeMap {
-		fmt.Printf("node #%d: nodeType=\"%s\" alt=\"%s\", src=\"%s\"\n", nodeCount, node.NodeType, attrMap[`alt`], attrMap[`src`])
+		fmt.Printf("node #%d: nodeType=\"%s\" alt=\"%s\", src=\"%s\"\n", nodeCount, node.NodeType, attrMap[config.AltAttrName], attrMap[config.SrcAttrName])
 		nodeCount++
 	}
 }
@@ -73,7 +73,7 @@ func saveScreenshotsOfNodes(ctx context.Context, nodes []*cdp.Node,
 	nodeMap := GetNodesAttrsMap(nodes)
 	for _, imgNode := range nodes {
 		parentNode := imgNode.Parent
-		src := nodeMap[imgNode][`src`]
+		src := nodeMap[imgNode][config.SrcAttrName]
 		filenamePrefix := Get1stGroupMatch(src, config.ArtworkIDRe)
 		if filenamePrefix == "" {
 			continue
@@ -136,4 +136,12 @@ func GetAllInputNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
 
 func GetAllButtonNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
 	return getAllNodes(ctx, config.ButtonNodeSel)
+}
+
+func GetAllAnchorNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
+	return getAllNodes(ctx, config.AnchorNodeSel)
+}
+
+func GetAllImgNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
+	return getAllNodes(ctx, config.ImgNodeSel)
 }
