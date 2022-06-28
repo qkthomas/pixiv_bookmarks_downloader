@@ -33,9 +33,6 @@ import (
 )
 
 const (
-	usernameInputPH        = `E-mail address or pixiv ID`
-	passwordInputPH        = `Password`
-	loginButtonText        = `Login`
 	loginButtonTypeAttrVal = `submit`
 )
 
@@ -52,16 +49,16 @@ func getUserAndPasswordInputNodes(ctx context.Context) (userNode *cdp.Node, pass
 			return userNode, passwordNode, nil
 		}
 		val := attrs[config.PlaceHolderAttrName]
-		if val == usernameInputPH {
+		if val == config.Config.UsernameInputPH {
 			userNode = node
 			continue
 		}
-		if val == passwordInputPH {
+		if val == config.Config.PasswordInputPH {
 			passwordNode = node
 			continue
 		}
 	}
-	return userNode, passwordNode, fmt.Errorf("no node found has attributes: \"%s\" or \"%s\"", usernameInputPH, passwordInputPH)
+	return userNode, passwordNode, fmt.Errorf("no node found has attributes: \"%s\" or \"%s\"", config.Config.UsernameInputPH, config.Config.PasswordInputPH)
 }
 
 func getLoginNode(ctx context.Context) (loginNode *cdp.Node, err error) {
@@ -80,11 +77,11 @@ func getLoginNode(ctx context.Context) (loginNode *cdp.Node, err error) {
 		chromedp.Run(ctx,
 			chromedp.Text(config.ButtonNodeSel, &text, chromedp.ByQuery, chromedp.FromNode(node.Parent)),
 		)
-		if text == loginButtonText {
+		if text == config.Config.LoginButtonText {
 			return node, nil
 		}
 	}
-	return loginNode, fmt.Errorf("no button node found has type attr of \"%s\" and text of \"%s\"", loginButtonTypeAttrVal, loginButtonText)
+	return loginNode, fmt.Errorf("no button node found has type attr of \"%s\" and text of \"%s\"", loginButtonTypeAttrVal, config.Config.LoginButtonText)
 }
 
 func navigateToPixivSiteAndClickLogin(ctx context.Context) (err error) {
