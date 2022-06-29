@@ -130,35 +130,51 @@ func StartSavingResponseToFile(wg *sync.WaitGroup, ctx context.Context, requestI
 	}()
 }
 
-func getAllNodes(ctx context.Context, sel string) (nodes []*cdp.Node, err error) {
+func getAllNodes(ctx context.Context, sel string,
+	selectNode func(*cdp.Node) bool) (nodes []*cdp.Node, err error) {
+	var allNodes []*cdp.Node
 	err = chromedp.Run(ctx,
-		chromedp.Nodes(sel, &nodes),
+		chromedp.Nodes(sel, &allNodes),
 	)
-	nodeMap := make(map[*cdp.Node]struct{})
-	for _, node := range nodes {
-		nodeMap[node] = struct{}{}
+	if err != nil {
+		return nodes, fmt.Errorf("failed to get nodes using selector \"%s\": %+v", sel, err)
 	}
-	nodes = []*cdp.Node{}
-	for node := range nodeMap {
-		if node.LocalName == sel {
+
+	if selectNode == nil {
+		return allNodes, nil
+	}
+	for _, node := range allNodes {
+		if selectNode != nil && selectNode(node) {
 			nodes = append(nodes, node)
 		}
 	}
-	return nodes, err
+	return nodes, nil
 }
 
 func GetAllInputNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
-	return getAllNodes(ctx, config.InputNodeSel)
+	selectNode := func(node *cdp.Node) bool {
+		return node.LocalName == config.InputNodeSel
+	}
+	return getAllNodes(ctx, config.InputNodeSel, selectNode)
 }
 
 func GetAllButtonNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
-	return getAllNodes(ctx, config.ButtonNodeSel)
+	selectNode := func(node *cdp.Node) bool {
+		return node.LocalName == config.ButtonNodeSel
+	}
+	return getAllNodes(ctx, config.ButtonNodeSel, selectNode)
 }
 
 func GetAllAnchorNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
-	return getAllNodes(ctx, config.AnchorNodeSel)
+	selectNode := func(node *cdp.Node) bool {
+		return node.LocalName == config.AnchorNodeSel
+	}
+	return getAllNodes(ctx, config.AnchorNodeSel, selectNode)
 }
 
 func GetAllImgNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
-	return getAllNodes(ctx, config.ImgNodeSel)
+	selectNode := func(node *cdp.Node) bool {
+		return node.LocalName == config.ImgNodeSel
+	}
+	return getAllNodes(ctx, config.ImgNodeSel, selectNode)
 }

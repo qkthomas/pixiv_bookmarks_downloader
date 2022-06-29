@@ -32,9 +32,22 @@ import (
 	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/config"
 )
 
-const (
-	dropdownMenuSel = `#root > div:nth-child(2) > div.sc-12xjnzy-0.dIGjtZ > div:nth-child(1) > div:nth-child(1) > div > div.sc-4nj1pr-3.bWvcqZ > div.sc-4nj1pr-4.jlGtrR > div.sc-pkfh0q-0.kYDpSN > div > button > div`
-)
+func getUserProfileImgNode(ctx context.Context) (userProfileImgNode *cdp.Node, err error) {
+	nodes, err := common.GetAllImgNodes(ctx)
+	if err != nil {
+		return userProfileImgNode, fmt.Errorf("unable to get all img nodes: %+v", err)
+	}
+	nodesAttrsMap := common.GetNodesAttrsMap(nodes)
+	for node, attrs := range nodesAttrsMap {
+		srcVal := attrs[config.SrcAttrName]
+		srcSuffix := common.Get1stGroupMatch(srcVal, config.UserProfileImgSrcRe)
+		if srcSuffix == "" {
+			continue
+		}
+		return node, nil
+	}
+	return userProfileImgNode, fmt.Errorf("no img node has \"%s\" attr value matchs regex \"%s\"", config.SrcAttrName, config.UserProfileImgSrcRe.String())
+}
 
 func getLogoutButtonNode(ctx context.Context) (logoutButtonNode *cdp.Node, err error) {
 	nodes, err := common.GetAllButtonNodes(ctx)
@@ -53,7 +66,7 @@ func getLogoutButtonNode(ctx context.Context) (logoutButtonNode *cdp.Node, err e
 			return node, nil
 		}
 	}
-	return logoutButtonNode, fmt.Errorf("no button found with text \"%s\"", config.Config.LogoutButtonText)
+	return logoutButtonNode, fmt.Errorf("no button node found with text \"%s\"", config.Config.LogoutButtonText)
 }
 
 func getLogoutConfirmationButtonNode(ctx context.Context) (logoutConfirmationButtonNode *cdp.Node, err error) {
@@ -61,14 +74,13 @@ func getLogoutConfirmationButtonNode(ctx context.Context) (logoutConfirmationBut
 }
 
 func logoutPixiv(ctx context.Context, screenshotBuf *[]byte) (err error) {
-	bookmarkPageUrl := fmt.Sprintf("%s/users/%d/bookmarks/artworks", config.PixivSiteUrl, config.Config.UserID)
+	profileImgNode, err := getUserProfileImgNode(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get profile img node: %+v", err)
+	}
+
 	err = chromedp.Run(ctx,
-		// go to bookmarks
-		chromedp.Navigate(bookmarkPageUrl),
-		// to logout
-		// open dropdown menu
-		chromedp.WaitVisible(dropdownMenuSel),
-		chromedp.Click(dropdownMenuSel, chromedp.NodeVisible),
+		chromedp.MouseClickNode(profileImgNode),
 		// just wait
 		chromedp.Sleep(1*time.Second),
 	)

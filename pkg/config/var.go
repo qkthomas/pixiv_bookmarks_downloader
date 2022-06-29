@@ -61,11 +61,13 @@ const (
 	WriteFilePermission = 0644
 
 	//some regex
-	artworkerImgReStr = `(\d+)_p(\d+)\.(jpg|png|jpeg|gif)+` //this only match full res img
-	artworkIDReStr    = `(\d+)_p`                           //this also match thumbnails
+	artworkerImgReStr      = `(\d+)_p(\d+)\.(jpg|png|jpeg|gif)+` //this only match full res img
+	artworkIDReStr         = `(\d+)_p`                           //this also match thumbnails
+	userProfileImgSrcReStr = `https:\/\/i\.pximg\.net\/user-profile\/img\/(.+\.jpg)`
 )
 
 var (
-	ArtworkImgRe = regexp.MustCompile(artworkerImgReStr)
-	ArtworkIDRe  = regexp.MustCompile(artworkIDReStr)
+	ArtworkImgRe        = regexp.MustCompile(artworkerImgReStr)
+	ArtworkIDRe         = regexp.MustCompile(artworkIDReStr)
+	UserProfileImgSrcRe = regexp.MustCompile(userProfileImgSrcReStr)
 )

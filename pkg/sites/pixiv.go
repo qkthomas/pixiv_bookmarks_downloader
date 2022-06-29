@@ -165,21 +165,21 @@ func DoPixiv(ctx context.Context) {
 	// 	i++
 	// }
 
-	// err = chromedp.Run(ctx,
-	// 	chromedp.Navigate(`https://www.pixiv.net/artworks/92843638`),
-	// 	chromedp.Sleep(time.Second*5),
-	// )
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	err = chromedp.Run(ctx,
+		chromedp.Navigate(`https://www.pixiv.net/artworks/92843638`),
+		chromedp.Sleep(time.Second*5),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// err = downloadArtwork(ctx)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	err = downloadArtwork(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// fmt.Println("waiting writing files to be done")
-	// writeFilesWg.Wait()
+	fmt.Println("waiting writing files to be done")
+	writeFilesWg.Wait()
 
 	err = logoutPixiv(ctx, &buf3)
 	if err != nil {

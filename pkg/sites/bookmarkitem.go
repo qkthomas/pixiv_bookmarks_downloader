@@ -106,7 +106,7 @@ func getArtworkImgNode(ctx context.Context) (imgNode *cdp.Node, err error) {
 		return node, nil
 	}
 
-	return imgNode, fmt.Errorf("no img node with src pointed to artwork full res image")
+	return imgNode, fmt.Errorf("no img node has \"%s\" attr value matchs regex \"%s\"", config.SrcAttrName, config.ArtworkImgRe.String())
 }
 
 func listenForNetworkEventAndDownloadArtworkImage(ctx context.Context) {
@@ -164,7 +164,7 @@ func downloadMultiImgsArtwork(ctx context.Context, anchorNode *cdp.Node) (err er
 			//to zoom out
 			imgNode, err = getArtworkImgNode(ctx)
 			if err != nil {
-				fmt.Printf("wanring: unable to find img node for artwork: %+v", err)
+				fmt.Printf("warning: unable to find img node for full res artwork: %+v. retrying\n", err)
 			}
 		}
 
