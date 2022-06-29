@@ -69,7 +69,8 @@ func PrintNodesAltAndSrc(nodes []*cdp.Node) {
 }
 
 func saveScreenshotsOfNodes(ctx context.Context, nodes []*cdp.Node,
-	howToSave func([]byte, string)) (err error) {
+	howToSave func([]byte, string) error) (err error) {
+	var errs []error
 	nodeMap := GetNodesAttrsMap(nodes)
 	for _, imgNode := range nodes {
 		parentNode := imgNode.Parent
@@ -80,30 +81,33 @@ func saveScreenshotsOfNodes(ctx context.Context, nodes []*cdp.Node,
 		}
 		filename := path.Base(src)
 		var buf []byte
-		err = chromedp.Run(ctx,
+		errInner := chromedp.Run(ctx,
 			chromedp.Screenshot(config.ThumbnailNodeSel, &buf, chromedp.FromNode(parentNode)),
 		)
-		if err != nil {
-			return fmt.Errorf("failed to take screenshot of node: %+v", err)
+		if errInner != nil {
+			errs = append(errs, fmt.Errorf("failed to take screenshot of node: %+v", errInner))
+			continue
 		}
-		howToSave(buf, filename)
+		errInner = howToSave(buf, filename)
+		if errInner != nil {
+			errs = append(errs, errInner)
+		}
 	}
-	return nil
+	return ConcatenateErrors(errs...)
 }
 
-func SaveThumbnailsImgsToFile(ctx context.Context, imgNodes []*cdp.Node) {
-	howToSave := func(buf []byte, filename string) {
+func SaveScreenshotsOfThumbnailNodes(ctx context.Context, imgNodes []*cdp.Node) (err error) {
+	howToSave := func(buf []byte, filename string) error {
 		filepath := fmt.Sprintf("%s/%s", config.ThumbnailsFileLocation, filename)
-		if err := ioutil.WriteFile(filepath, buf, config.WriteFilePermission); err != nil {
+		err = ioutil.WriteFile(filepath, buf, config.WriteFilePermission)
+		if err != nil {
 			fmt.Printf("%s %+v\n", config.ErrorMsgPrefix, err)
-			return
+			return fmt.Errorf("failed to write to file \"%s\": %+v", filepath, err)
 		}
 		fmt.Printf("%s wrote %s\n", config.InfMsgPrefix, filepath)
+		return nil
 	}
-	err := saveScreenshotsOfNodes(ctx, imgNodes, howToSave)
-	if err != nil {
-		fmt.Printf("%s %+v\n", config.ErrorMsgPrefix, err)
-	}
+	return saveScreenshotsOfNodes(ctx, imgNodes, howToSave)
 }
 
 func StartSavingResponseToFile(wg *sync.WaitGroup, ctx context.Context, requestID network.RequestID, filepath string) {
@@ -153,6 +157,7 @@ func getAllNodes(ctx context.Context, sel string,
 
 func GetAllInputNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
 	selectNode := func(node *cdp.Node) bool {
+		//double check the local name. sometime chromdp returns a different kind of element
 		return node.LocalName == config.InputNodeSel
 	}
 	return getAllNodes(ctx, config.InputNodeSel, selectNode)
@@ -160,6 +165,7 @@ func GetAllInputNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
 
 func GetAllButtonNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
 	selectNode := func(node *cdp.Node) bool {
+		//double check the local name. sometime chromdp returns a different kind of element
 		return node.LocalName == config.ButtonNodeSel
 	}
 	return getAllNodes(ctx, config.ButtonNodeSel, selectNode)
@@ -167,6 +173,7 @@ func GetAllButtonNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
 
 func GetAllAnchorNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
 	selectNode := func(node *cdp.Node) bool {
+		//double check the local name. sometime chromdp returns a different kind of element
 		return node.LocalName == config.AnchorNodeSel
 	}
 	return getAllNodes(ctx, config.AnchorNodeSel, selectNode)
@@ -174,7 +181,16 @@ func GetAllAnchorNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
 
 func GetAllImgNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
 	selectNode := func(node *cdp.Node) bool {
+		//double check the local name. sometime chromdp returns a different kind of element
 		return node.LocalName == config.ImgNodeSel
 	}
 	return getAllNodes(ctx, config.ImgNodeSel, selectNode)
+}
+
+func GetAllSvgNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
+	selectNode := func(node *cdp.Node) bool {
+		//double check the local name. sometime chromdp returns a different kind of element
+		return node.LocalName == config.SvgNodeSel
+	}
+	return getAllNodes(ctx, config.SvgNodeSel, selectNode)
 }

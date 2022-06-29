@@ -22,26 +22,20 @@
 package common
 
 import (
-	"regexp"
+	"fmt"
+	"strings"
 )
 
-func Get1stGroupMatch(str string, re *regexp.Regexp) string {
-	return getGroupMatch(str, re, 1)
-}
-
-func Get2ndGroupMatch(str string, re *regexp.Regexp) string {
-	return getGroupMatch(str, re, 2)
-}
-
-func Get3rdGroupMatch(str string, re *regexp.Regexp) string {
-	return getGroupMatch(str, re, 3)
-}
-
-func getGroupMatch(str string, re *regexp.Regexp, groupIdx int) string {
-	matches := re.FindStringSubmatch(str)
-	if len(matches) < re.NumSubexp()+1 {
-		// no match
-		return ""
+func ConcatenateErrors(errors ...error) error {
+	var errorSlice []string
+	for _, err := range errors {
+		if err != nil {
+			errorSlice = append(errorSlice, err.Error())
+		}
 	}
-	return matches[groupIdx]
+	if len(errorSlice) == 0 {
+		return nil
+	}
+
+	return fmt.Errorf(strings.Join(errorSlice, "\n -"))
 }

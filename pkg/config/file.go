@@ -41,13 +41,14 @@ const (
 type configFile struct {
 	Username string `yaml:"Username"`
 	Password string `yaml:"Password"`
-	UserID   uint   `yaml:"UserID"`
+	UserID   string `yaml:"UserID"`
 	//some text for helping locate html nodes
 	UsernameInputPH         string `yaml:"UsernameInputPlaceHolder"`
 	PasswordInputPH         string `yaml:"PasswordInputPlaceHolder"`
 	LoginButtonText         string `yaml:"LoginButtonText"`
 	LogoutButtonText        string `yaml:"LogoutButtonText"`
 	ConfirmLogoutButtonText string `yaml:"ConfirmLogoutButtonText"`
+	BookmarkAnchorText      string `yaml:"BookmarkAnchorText"`
 }
 
 func init() {

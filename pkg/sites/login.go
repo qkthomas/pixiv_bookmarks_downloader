@@ -77,7 +77,7 @@ func navigateToPixivSiteAndClickLogin(ctx context.Context) (err error) {
 	)
 }
 
-func loginPixiv(ctx context.Context, screenshotBuf *[]byte) (err error) {
+func loginPixiv(ctx context.Context) (err error) {
 	err = navigateToPixivSiteAndClickLogin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to navigate to pixiv login page: %+v", err)
@@ -105,11 +105,9 @@ func loginPixiv(ctx context.Context, screenshotBuf *[]byte) (err error) {
 
 	err = chromedp.Run(ctx,
 		chromedp.Click(config.ButtonNodeSel, chromedp.ByQuery, chromedp.FromNode(loginNode.Parent)),
-		chromedp.WaitVisible(`img.sc-1yo2nn9-1.bBQkQw`),
+		chromedp.WaitVisible(config.TopLeftPixivImgSel),
 		// just wait
 		chromedp.Sleep(3*time.Second),
-		// take screenshot
-		chromedp.FullScreenshot(screenshotBuf, 90),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to click login button: %+v", err)

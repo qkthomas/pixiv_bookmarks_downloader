@@ -31,21 +31,26 @@ const (
 	PixivSiteUrl = `https://www.pixiv.net`
 
 	//some selectors
-	ThumbnailNodeSel = `img.sc-rp5asc-10.erYaF`
-	FigureNodeSel    = `figure.sc-1yvhotl-3.jUCdwp`
-	InputNodeSel     = `input`
-	ButtonNodeSel    = `button`
-	ImgNodeSel       = `img`
-	AnchorNodeSel    = `a`
+	ThumbnailNodeSel   = `img.sc-rp5asc-10.erYaF`
+	FigureNodeSel      = `figure.sc-1yvhotl-3.jUCdwp`
+	TopLeftPixivImgSel = `img.sc-1yo2nn9-1.bBQkQw`
+	InputNodeSel       = `input`
+	ButtonNodeSel      = `button`
+	ImgNodeSel         = `img`
+	AnchorNodeSel      = `a`
+	SvgNodeSel         = `svg`
+	NavvNodeSel        = `nav`
+	DivNodeSel         = `div`
 
 	//some attribute names/keys
-	PlaceHolderAttrName = `placeholder`
-	TypeAttrName        = `type`
-	RelAttrName         = `rel`
-	HrefAttrName        = `href`
-	ClassAttrName       = `class`
-	SrcAttrName         = `src`
-	AltAttrName         = `alt`
+	PlaceHolderAttrName  = `placeholder`
+	TypeAttrName         = `type`
+	RelAttrName          = `rel`
+	HrefAttrName         = `href`
+	ClassAttrName        = `class`
+	SrcAttrName          = `src`
+	AltAttrName          = `alt`
+	AriaDisabledAttrName = `aria-disabled`
 
 	//some directory names
 	SavedFileLocation      = `saved`
@@ -61,13 +66,15 @@ const (
 	WriteFilePermission = 0644
 
 	//some regex
-	artworkerImgReStr      = `(\d+)_p(\d+)\.(jpg|png|jpeg|gif)+` //this only match full res img
-	artworkIDReStr         = `(\d+)_p`                           //this also match thumbnails
-	userProfileImgSrcReStr = `https:\/\/i\.pximg\.net\/user-profile\/img\/(.+\.jpg)`
+	artworkerImgReStr              = `(\d+)_p(\d+)\.(jpg|png|jpeg|gif)+` //this only match full res img
+	artworkIDReStr                 = `(\d+)_p`                           //this also match thumbnails
+	userProfileImgSrcReStr         = `https:\/\/i\.pximg\.net\/user-profile\/img\/(.+\.jpg)`
+	userPookmarkPageUrlSuffixReStr = `/users\/(\d+)\/bookmarks\/artworks\?*(p=(\d+))*`
 )
 
 var (
-	ArtworkImgRe        = regexp.MustCompile(artworkerImgReStr)
-	ArtworkIDRe         = regexp.MustCompile(artworkIDReStr)
-	UserProfileImgSrcRe = regexp.MustCompile(userProfileImgSrcReStr)
+	ArtworkImgRe                = regexp.MustCompile(artworkerImgReStr)
+	ArtworkIDRe                 = regexp.MustCompile(artworkIDReStr)
+	UserProfileImgSrcRe         = regexp.MustCompile(userProfileImgSrcReStr)
+	UserBookmarkPageUrSuffixlRe = regexp.MustCompile(userPookmarkPageUrlSuffixReStr)
 )
