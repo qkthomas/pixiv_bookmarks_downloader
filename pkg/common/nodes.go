@@ -35,6 +35,14 @@ import (
 	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/config"
 )
 
+//TargetNode is used to target a specific node which chromedp does QueryAction on.
+//it helps the convoluting usage of "chromedp.FromNode(node.Parent)"
+func TargetNode(node *cdp.Node) chromedp.QueryOption {
+	return chromedp.ByFunc(func(context.Context, *cdp.Node) ([]cdp.NodeID, error) {
+		return []cdp.NodeID{node.NodeID}, nil
+	})
+}
+
 func GetHref(node *cdp.Node) string {
 	attrMap := make(map[string]string)
 	attrsLen := len(node.Attributes)
@@ -73,7 +81,6 @@ func saveScreenshotsOfNodes(ctx context.Context, nodes []*cdp.Node,
 	var errs []error
 	nodeMap := GetNodesAttrsMap(nodes)
 	for _, imgNode := range nodes {
-		parentNode := imgNode.Parent
 		src := nodeMap[imgNode][config.SrcAttrName]
 		filenamePrefix := Get1stGroupMatch(src, config.ArtworkIDRe)
 		if filenamePrefix == "" {
@@ -82,7 +89,7 @@ func saveScreenshotsOfNodes(ctx context.Context, nodes []*cdp.Node,
 		filename := path.Base(src)
 		var buf []byte
 		errInner := chromedp.Run(ctx,
-			chromedp.Screenshot(config.ThumbnailNodeSel, &buf, chromedp.FromNode(parentNode)),
+			chromedp.Screenshot(config.AnySel, &buf, TargetNode(imgNode)),
 		)
 		if errInner != nil {
 			errs = append(errs, fmt.Errorf("failed to take screenshot of node: %+v", errInner))

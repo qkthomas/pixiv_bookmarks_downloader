@@ -90,8 +90,8 @@ func loginPixiv(ctx context.Context) (err error) {
 	}
 
 	err = chromedp.Run(ctx,
-		chromedp.SendKeys(config.InputNodeSel, config.Config.Username, chromedp.ByQuery, chromedp.FromNode(userNode.Parent)),
-		chromedp.SendKeys(config.InputNodeSel, config.Config.Password, chromedp.ByQuery, chromedp.FromNode(pwNode.Parent)),
+		chromedp.SendKeys(config.AnySel, config.Config.Username, chromedp.ByQuery, common.TargetNode(userNode)),
+		chromedp.SendKeys(config.AnySel, config.Config.Password, chromedp.ByQuery, common.TargetNode(pwNode.Parent)),
 		// just wait
 		chromedp.Sleep(3*time.Second),
 	)
@@ -105,7 +105,7 @@ func loginPixiv(ctx context.Context) (err error) {
 	}
 
 	err = chromedp.Run(ctx,
-		chromedp.Click(config.ButtonNodeSel, chromedp.ByQuery, chromedp.FromNode(loginNode.Parent)),
+		chromedp.Click(config.AnySel, chromedp.ByQuery, common.TargetNode(loginNode)),
 		chromedp.WaitVisible(config.TopLeftPixivImgSel, chromedp.ByQuery),
 		// just wait
 		chromedp.Sleep(3*time.Second),

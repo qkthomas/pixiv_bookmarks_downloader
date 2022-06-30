@@ -31,6 +31,7 @@ const (
 	PixivSiteUrl = `https://www.pixiv.net`
 
 	//some selectors
+	AnySel             = `*`
 	ThumbnailNodeSel   = `img.sc-rp5asc-10.erYaF`
 	FigureNodeSel      = `figure.sc-1yvhotl-3.jUCdwp`
 	TopLeftPixivImgSel = `img.sc-1yo2nn9-1.bBQkQw`

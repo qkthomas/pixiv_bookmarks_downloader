@@ -50,7 +50,7 @@ func getSubmitButtonNode(ctx context.Context, buttonText string) (submitButtonNo
 		return submitButtonNode, fmt.Errorf("no button node found with %s attr value = \"%s\"", config.TypeAttrName, submitButtonTypeAttrVal)
 	}
 
-	return getNodeWithText(ctx, config.ButtonNodeSel, buttonText, submitButtonNodes)
+	return getNodeWithText(ctx, buttonText, submitButtonNodes)
 }
 
 func DoPixiv(ctx context.Context) {
@@ -59,10 +59,10 @@ func DoPixiv(ctx context.Context) {
 		log.Fatal(err)
 	}
 
-	err = iterateBookmarkPages(ctx)
-	if err != nil {
-		log.Println(err)
-	}
+	// err = iterateBookmarkPages(ctx)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
 
 	// err = navigateToArtworkPageAndDownloadArtwork(ctx, `https://www.pixiv.net/artworks/92843638`)
 	// if err != nil {
@@ -75,11 +75,11 @@ func DoPixiv(ctx context.Context) {
 	}
 }
 
-func getNodeWithText(ctx context.Context, nodeSel, textToMatch string, nodes []*cdp.Node) (nodeWithText *cdp.Node, err error) {
+func getNodeWithText(ctx context.Context, textToMatch string, nodes []*cdp.Node) (nodeWithText *cdp.Node, err error) {
 	for _, node := range nodes {
 		var text string
 		err = chromedp.Run(ctx,
-			chromedp.Text(nodeSel, &text, chromedp.ByQuery, chromedp.FromNode(node.Parent)),
+			chromedp.Text(config.AnySel, &text, chromedp.ByQuery, common.TargetNode(node)),
 		)
 		if err != nil {
 			return nodeWithText, fmt.Errorf("failed to get text from node: %+v", err)
@@ -88,7 +88,7 @@ func getNodeWithText(ctx context.Context, nodeSel, textToMatch string, nodes []*
 			return node, nil
 		}
 	}
-	return nodeWithText, fmt.Errorf("no %s node found with text \"%s\"", nodeSel, textToMatch)
+	return nodeWithText, fmt.Errorf("no node found with text \"%s\"", textToMatch)
 }
 
 func getUserProfileImgNode(ctx context.Context) (userProfileImgNode *cdp.Node, err error) {

@@ -244,7 +244,7 @@ func getBookmarkAnchorNode(ctx context.Context) (bookmarkAnchorNode *cdp.Node, e
 	if err != nil {
 		return bookmarkAnchorNode, fmt.Errorf("unable to get all anchor nodes: %+v", err)
 	}
-	return getNodeWithText(ctx, config.AnchorNodeSel, config.Config.BookmarkAnchorText, nodes)
+	return getNodeWithText(ctx, config.Config.BookmarkAnchorText, nodes)
 }
 
 func goToBookmarkPage(ctx context.Context) (err error) {

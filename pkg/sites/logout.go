@@ -37,7 +37,7 @@ func getLogoutButtonNode(ctx context.Context) (logoutButtonNode *cdp.Node, err e
 	if err != nil {
 		return logoutButtonNode, fmt.Errorf("unable to get all button nodes: %+v", err)
 	}
-	return getNodeWithText(ctx, config.ButtonNodeSel, config.Config.LogoutButtonText, nodes)
+	return getNodeWithText(ctx, config.Config.LogoutButtonText, nodes)
 }
 
 func getLogoutConfirmationButtonNode(ctx context.Context) (logoutConfirmationButtonNode *cdp.Node, err error) {
