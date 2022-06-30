@@ -138,7 +138,7 @@ func getAllNodes(ctx context.Context, sel string,
 	selectNode func(*cdp.Node) bool) (nodes []*cdp.Node, err error) {
 	var allNodes []*cdp.Node
 	err = chromedp.Run(ctx,
-		chromedp.Nodes(sel, &allNodes),
+		chromedp.Nodes(sel, &allNodes, chromedp.ByQueryAll),
 	)
 	if err != nil {
 		return nodes, fmt.Errorf("failed to get nodes using selector \"%s\": %+v", sel, err)
@@ -148,7 +148,7 @@ func getAllNodes(ctx context.Context, sel string,
 		return allNodes, nil
 	}
 	for _, node := range allNodes {
-		if selectNode != nil && selectNode(node) {
+		if selectNode(node) {
 			nodes = append(nodes, node)
 		}
 	}
@@ -156,41 +156,21 @@ func getAllNodes(ctx context.Context, sel string,
 }
 
 func GetAllInputNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
-	selectNode := func(node *cdp.Node) bool {
-		//double check the local name. sometime chromdp returns a different kind of element
-		return node.LocalName == config.InputNodeSel
-	}
-	return getAllNodes(ctx, config.InputNodeSel, selectNode)
+	return getAllNodes(ctx, config.InputNodeSel, nil)
 }
 
 func GetAllButtonNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
-	selectNode := func(node *cdp.Node) bool {
-		//double check the local name. sometime chromdp returns a different kind of element
-		return node.LocalName == config.ButtonNodeSel
-	}
-	return getAllNodes(ctx, config.ButtonNodeSel, selectNode)
+	return getAllNodes(ctx, config.ButtonNodeSel, nil)
 }
 
 func GetAllAnchorNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
-	selectNode := func(node *cdp.Node) bool {
-		//double check the local name. sometime chromdp returns a different kind of element
-		return node.LocalName == config.AnchorNodeSel
-	}
-	return getAllNodes(ctx, config.AnchorNodeSel, selectNode)
+	return getAllNodes(ctx, config.AnchorNodeSel, nil)
 }
 
 func GetAllImgNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
-	selectNode := func(node *cdp.Node) bool {
-		//double check the local name. sometime chromdp returns a different kind of element
-		return node.LocalName == config.ImgNodeSel
-	}
-	return getAllNodes(ctx, config.ImgNodeSel, selectNode)
+	return getAllNodes(ctx, config.ImgNodeSel, nil)
 }
 
 func GetAllSvgNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
-	selectNode := func(node *cdp.Node) bool {
-		//double check the local name. sometime chromdp returns a different kind of element
-		return node.LocalName == config.SvgNodeSel
-	}
-	return getAllNodes(ctx, config.SvgNodeSel, selectNode)
+	return getAllNodes(ctx, config.SvgNodeSel, nil)
 }

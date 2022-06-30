@@ -61,7 +61,8 @@ func getUserAndPasswordInputNodes(ctx context.Context) (userNode *cdp.Node, pass
 	return userNode, passwordNode, fmt.Errorf("no node found has attributes: \"%s\" or \"%s\"", config.Config.UsernameInputPH, config.Config.PasswordInputPH)
 }
 
-func getLoginNode(ctx context.Context) (loginNode *cdp.Node, err error) {
+//get the login button on the page that you input username and password
+func getSubmitLoginNode(ctx context.Context) (submitLoginNode *cdp.Node, err error) {
 	return getSubmitButtonNode(ctx, config.Config.LoginButtonText)
 }
 
@@ -69,9 +70,9 @@ func navigateToPixivSiteAndClickLogin(ctx context.Context) (err error) {
 	return chromedp.Run(ctx,
 		chromedp.Navigate(config.PixivSiteUrl),
 		// wait for element is visible (ie, page is loaded)
-		chromedp.WaitVisible(`a.signup-form__submit--login`),
+		chromedp.WaitVisible(`a.signup-form__submit--login`, chromedp.ByQuery),
 		// // find and click
-		chromedp.Click(`a.signup-form__submit--login`, chromedp.NodeVisible),
+		chromedp.Click(`a.signup-form__submit--login`, chromedp.ByQuery, chromedp.NodeVisible),
 		// just wait
 		chromedp.Sleep(3*time.Second),
 	)
@@ -98,14 +99,14 @@ func loginPixiv(ctx context.Context) (err error) {
 		return fmt.Errorf("unable to send keys to username or password input: %+v", err)
 	}
 
-	loginNode, err := getLoginNode(ctx)
+	loginNode, err := getSubmitLoginNode(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to find node of login button: %+v", err)
 	}
 
 	err = chromedp.Run(ctx,
 		chromedp.Click(config.ButtonNodeSel, chromedp.ByQuery, chromedp.FromNode(loginNode.Parent)),
-		chromedp.WaitVisible(config.TopLeftPixivImgSel),
+		chromedp.WaitVisible(config.TopLeftPixivImgSel, chromedp.ByQuery),
 		// just wait
 		chromedp.Sleep(3*time.Second),
 	)

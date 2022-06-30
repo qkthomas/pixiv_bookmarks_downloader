@@ -81,7 +81,7 @@ func printBookmarkPage(ctx context.Context, bookmarkPage string, screenshotBuf *
 		// take screenshot
 		chromedp.FullScreenshot(screenshotBuf, 90),
 		// get thumbnailNodes
-		chromedp.Nodes(config.ThumbnailNodeSel, &thumbnailNodes),
+		chromedp.Nodes(config.ThumbnailNodeSel, &thumbnailNodes, chromedp.ByQueryAll),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to take screenshot or get thumnail nodes: %+v", err)
@@ -206,7 +206,7 @@ func goToNextBookmarkPage(ctx context.Context) (noNext bool, err error) {
 
 	err = chromedp.Run(ctx,
 		chromedp.MouseClickNode(nextPageSvgNode),
-		chromedp.WaitVisible(config.TopLeftPixivImgSel),
+		chromedp.WaitVisible(config.TopLeftPixivImgSel, chromedp.ByQuery),
 		//just wait
 		chromedp.Sleep(time.Second),
 	)
@@ -260,7 +260,7 @@ func goToBookmarkPage(ctx context.Context) (err error) {
 
 	err = chromedp.Run(ctx,
 		chromedp.MouseClickNode(bmAnchorNode),
-		chromedp.WaitVisible(config.TopLeftPixivImgSel),
+		chromedp.WaitVisible(config.TopLeftPixivImgSel, chromedp.ByQuery),
 		// just wait
 		chromedp.Sleep(3*time.Second),
 	)

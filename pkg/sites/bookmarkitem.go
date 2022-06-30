@@ -137,7 +137,7 @@ func downloadMultiImgsArtwork(ctx context.Context, anchorNode *cdp.Node) (err er
 	if err != nil {
 		return fmt.Errorf("failed to get the list of anchor nodes: %+v", err)
 	}
-	fmt.Printf("number of anchorNodes: %d\n", len(anchorNodes))
+
 	for _, anchorNode := range anchorNodes {
 
 		var imgNode *cdp.Node
@@ -159,7 +159,7 @@ func downloadMultiImgsArtwork(ctx context.Context, anchorNode *cdp.Node) (err er
 		}
 
 		err = chromedp.Run(ctx,
-			chromedp.Click(config.ImgNodeSel, chromedp.ByQuery, chromedp.FromNode(imgNode.Parent)),
+			chromedp.MouseClickNode(imgNode),
 			chromedp.Sleep(time.Second),
 		)
 		if err != nil {
@@ -171,7 +171,7 @@ func downloadMultiImgsArtwork(ctx context.Context, anchorNode *cdp.Node) (err er
 
 func downloadSingleImgArtwork(ctx context.Context, anchorNode *cdp.Node) (err error) {
 	return chromedp.Run(ctx,
-		chromedp.Click(config.ImgNodeSel, chromedp.ByQuery, chromedp.FromNode(anchorNode)),
+		chromedp.MouseClickNode(anchorNode),
 		chromedp.Sleep(config.SavingRespWaitDura),
 	)
 
