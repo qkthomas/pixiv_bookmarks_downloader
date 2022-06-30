@@ -1,0 +1,10 @@
+# to ignore file with no file extension
+*
+!*/
+!*.*
+# to ignore specific files
+*.jpeg
+*.jpg
+*.png
+*.txt
+*.exe
