@@ -25,11 +25,12 @@ import (
 	"context"
 
 	"github.com/chromedp/chromedp"
+	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/config"
 	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/sites"
 )
 
 func main() {
-	ctx, cancel := chromedp.NewExecAllocator(context.Background(), append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))...)
+	ctx, cancel := chromedp.NewExecAllocator(context.Background(), append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", config.Config.Headless))...)
 	defer cancel()
 	// create chrome instance
 	ctx, cancel = chromedp.NewContext(

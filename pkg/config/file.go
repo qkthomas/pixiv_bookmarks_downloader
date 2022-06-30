@@ -39,9 +39,11 @@ const (
 )
 
 type configFile struct {
-	Username string `yaml:"Username"`
-	Password string `yaml:"Password"`
-	UserID   string `yaml:"UserID"`
+	Headless                 bool   `yaml:"Headless"`
+	Username                 string `yaml:"Username"`
+	Password                 string `yaml:"Password"`
+	UserID                   string `yaml:"UserID"`
+	MaxBookmarkPageIteration int    `yaml:"MaxBookmarkPageIteration"`
 	//some text for helping locate html nodes
 	UsernameInputPH         string `yaml:"UsernameInputPlaceHolder"`
 	PasswordInputPH         string `yaml:"PasswordInputPlaceHolder"`

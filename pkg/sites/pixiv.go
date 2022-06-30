@@ -59,7 +59,7 @@ func DoPixiv(ctx context.Context) {
 		log.Fatal(err)
 	}
 
-	err = iterateBookmarkPages(ctx, 10)
+	err = iterateBookmarkPages(ctx, config.Config.MaxBookmarkPageIteration)
 	if err != nil {
 		log.Println(err)
 	}
