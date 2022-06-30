@@ -23,14 +23,21 @@ package common
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 )
 
-func ListenForNetworkEventAndDownloadImages(ctx context.Context, wg *sync.WaitGroup,
-	urlMatcher func(string) (string, bool)) {
+func ListenForNetworkEventAndDownloadImages(ctx context.Context,
+	urlMatcher func(string) (string, bool)) (waitFunc func()) {
+	wg := new(sync.WaitGroup)
+	waitFunc = func() {
+		fmt.Println("waiting writing files to be done")
+		wg.Wait()
+	}
+
 	chromedp.ListenTarget(ctx, func(ev interface{}) {
 		switch ev := ev.(type) {
 
@@ -51,4 +58,6 @@ func ListenForNetworkEventAndDownloadImages(ctx context.Context, wg *sync.WaitGr
 		}
 		// other needed network Event
 	})
+
+	return waitFunc
 }

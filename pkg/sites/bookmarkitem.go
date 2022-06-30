@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"path"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -110,7 +109,7 @@ func getArtworkImgNode(ctx context.Context) (imgNode *cdp.Node, err error) {
 	return imgNode, fmt.Errorf("no img node has \"%s\" attr value matchs regex \"%s\"", config.SrcAttrName, config.ArtworkImgRe.String())
 }
 
-func listenForNetworkEventAndDownloadArtworkImage(ctx context.Context, wg *sync.WaitGroup) {
+func listenForNetworkEventAndDownloadArtworkImage(ctx context.Context) (waitFunc func()) {
 	urlMatcher := func(url string) (filePath string, isMatched bool) {
 		artworkID := common.Get1stGroupMatch(url, config.ArtworkImgRe)
 		if artworkID == "" {
@@ -121,7 +120,7 @@ func listenForNetworkEventAndDownloadArtworkImage(ctx context.Context, wg *sync.
 		return filePath, true
 	}
 
-	common.ListenForNetworkEventAndDownloadImages(ctx, wg, urlMatcher)
+	return common.ListenForNetworkEventAndDownloadImages(ctx, urlMatcher)
 }
 
 func downloadMultiImgsArtwork(ctx context.Context, anchorNode *cdp.Node) (err error) {
@@ -177,12 +176,17 @@ func downloadSingleImgArtwork(ctx context.Context, anchorNode *cdp.Node) (err er
 
 }
 
-func downloadArtwork(ctx context.Context, wg *sync.WaitGroup) (err error) {
+func downloadArtwork(ctx context.Context) (err error) {
 	anchorNode, multiImgs, err := getAnchorNodeOfArtworkImg(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to find anchor node of artwork: %+v", err)
 	}
-	listenForNetworkEventAndDownloadArtworkImage(ctx, wg)
+
+	waitDownload := listenForNetworkEventAndDownloadArtworkImage(ctx)
+	defer func() {
+		waitDownload()
+	}()
+
 	if multiImgs {
 		err = downloadMultiImgsArtwork(ctx, anchorNode)
 	} else {
@@ -203,12 +207,7 @@ func navigateToArtworkPageAndDownloadArtwork(ctx context.Context, url string) (e
 		return fmt.Errorf("failed to navigate to \"%s\": %+v", url, err)
 	}
 
-	wg := new(sync.WaitGroup)
-	defer func() {
-		fmt.Println("waiting writing files to be done")
-		wg.Wait()
-	}()
-	err = downloadArtwork(ctx, wg)
+	err = downloadArtwork(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to download artwork at \"%s\"", url)
 	}

@@ -59,10 +59,10 @@ func DoPixiv(ctx context.Context) {
 		log.Fatal(err)
 	}
 
-	// err = iterateBookmarkPages(ctx, 10)
-	// if err != nil {
-	// 	log.Println(err)
-	// }
+	err = iterateBookmarkPages(ctx, 10)
+	if err != nil {
+		log.Println(err)
+	}
 
 	// err = navigateToArtworkPageAndDownloadArtwork(ctx, `https://www.pixiv.net/artworks/92843638`)
 	// if err != nil {

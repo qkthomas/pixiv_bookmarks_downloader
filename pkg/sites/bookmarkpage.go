@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"path"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -35,29 +34,27 @@ import (
 	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/config"
 )
 
-func listenForNetworkEventAndDownloadBookmarkThumbnails(ctx context.Context, wg *sync.WaitGroup) {
+func listenForNetworkEventAndDownloadBookmarkThumbnails(ctx context.Context) (waitFunc func()) {
 	urlMatcher := func(url string) (filePath string, isMatched bool) {
 		filenamePrefix := common.Get1stGroupMatch(url, config.ArtworkIDRe)
 		if filenamePrefix == "" {
 			return filePath, false
 		}
 		filename := path.Base(url)
-		filePath = fmt.Sprintf("%s/%s", config.SavedFileLocation, filename)
+		filePath = fmt.Sprintf("%s/%s", config.ThumbnailsFileLocation, filename)
 		return filePath, true
 	}
 
-	common.ListenForNetworkEventAndDownloadImages(ctx, wg, urlMatcher)
+	return common.ListenForNetworkEventAndDownloadImages(ctx, urlMatcher)
 }
 
 func printBookmarkPage(ctx context.Context, bookmarkPage string, screenshotBuf *[]byte) (err error) {
 	var thumbnailNodes []*cdp.Node
 
-	wg := new(sync.WaitGroup)
+	waitDownload := listenForNetworkEventAndDownloadBookmarkThumbnails(ctx)
 	defer func() {
-		fmt.Println("waiting writing files to be done")
-		wg.Wait()
+		waitDownload()
 	}()
-	listenForNetworkEventAndDownloadBookmarkThumbnails(ctx, wg)
 
 	err = chromedp.Run(ctx,
 		// go to bookmarks
@@ -304,6 +301,12 @@ func getUserID(ctx context.Context) (err error) {
 }
 
 func iterateBookmarkPages(ctx context.Context, maxIteration int) (err error) {
+
+	waitDownload := listenForNetworkEventAndDownloadBookmarkThumbnails(ctx)
+	defer func() {
+		waitDownload()
+	}()
+
 	err = goToBookmarkPageAndScrollToTheButtom(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to go to bookmark page and scroll to the bottom: %+v", err)
