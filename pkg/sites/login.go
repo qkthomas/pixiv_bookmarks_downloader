@@ -91,7 +91,7 @@ func loginPixiv(ctx context.Context) (err error) {
 
 	err = chromedp.Run(ctx,
 		chromedp.SendKeys(config.AnySel, config.Config.Username, chromedp.ByQuery, common.TargetNode(userNode)),
-		chromedp.SendKeys(config.AnySel, config.Config.Password, chromedp.ByQuery, common.TargetNode(pwNode.Parent)),
+		chromedp.SendKeys(config.AnySel, config.Config.Password, chromedp.ByQuery, common.TargetNode(pwNode)),
 		// just wait
 		chromedp.Sleep(3*time.Second),
 	)

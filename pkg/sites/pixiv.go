@@ -59,7 +59,7 @@ func DoPixiv(ctx context.Context) {
 		log.Fatal(err)
 	}
 
-	// err = iterateBookmarkPages(ctx)
+	// err = iterateBookmarkPages(ctx, 10)
 	// if err != nil {
 	// 	log.Println(err)
 	// }

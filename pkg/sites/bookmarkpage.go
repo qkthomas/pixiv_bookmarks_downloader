@@ -303,7 +303,7 @@ func getUserID(ctx context.Context) (err error) {
 	return nil
 }
 
-func iterateBookmarkPages(ctx context.Context) (err error) {
+func iterateBookmarkPages(ctx context.Context, maxIteration int) (err error) {
 	err = goToBookmarkPageAndScrollToTheButtom(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to go to bookmark page and scroll to the bottom: %+v", err)
@@ -314,12 +314,28 @@ func iterateBookmarkPages(ctx context.Context) (err error) {
 		fmt.Printf("failed to get user ID: %+v", warning)
 	}
 
-	var noNext bool
+	ithIteration := 2 //you will be on the 2nd page the 1st time when you click the next page button
+	toStop := func() bool {
+		defer func() {
+			ithIteration++
+		}()
+		if maxIteration <= 0 {
+			return false
+		}
+		if ithIteration < maxIteration {
+			return false
+		}
+		return true
+	}
 
+	var noNext bool
 	for !noNext {
 		noNext, err = goToNextBookmarkPageAndScrollToTheButtom(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to go to next bookmark page and scroll to the bottom: %+v", err)
+		}
+		if toStop() {
+			break
 		}
 	}
 	return nil
