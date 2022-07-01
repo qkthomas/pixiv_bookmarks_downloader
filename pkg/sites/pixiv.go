@@ -59,15 +59,13 @@ func DoPixiv(ctx context.Context) {
 		log.Fatal(err)
 	}
 
-	err = iterateBookmarkPages(ctx, config.Config.MaxBookmarkPageIteration)
+	toDo := func(ctx context.Context) (err error) {
+		return openBookmarkItemInNewTab(ctx, downloadArtwork)
+	}
+	err = iterateBookmarkPages(ctx, config.Config.MaxBookmarkPageIteration, toDo)
 	if err != nil {
 		log.Println(err)
 	}
-
-	// err = navigateToArtworkPageAndDownloadArtwork(ctx, `https://www.pixiv.net/artworks/92843638`)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
 
 	err = logoutPixiv(ctx)
 	if err != nil {

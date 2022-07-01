@@ -23,7 +23,10 @@ package config
 
 import (
 	"regexp"
+	"runtime"
 	"time"
+
+	"github.com/chromedp/cdproto/input"
 )
 
 const (
@@ -71,11 +74,22 @@ const (
 	artworkIDReStr                 = `(\d+)_p`                           //this also match thumbnails
 	userProfileImgSrcReStr         = `https:\/\/i\.pximg\.net\/user-profile\/img\/(.+\.jpg)`
 	userPookmarkPageUrlSuffixReStr = `/users\/(\d+)\/bookmarks\/artworks\?*(p=(\d+))*`
+	arkworkerUrlSuffixReStr        = `\/artworks\/(\d+)`
 )
 
 var (
+	//some input modifier
+	NewTabMouseClickModifier = func() input.Modifier {
+		modifier := input.ModifierCtrl
+		if runtime.GOOS == "darwin" {
+			modifier = input.ModifierCommand
+		}
+		return modifier
+	}()
+	//some regex
 	ArtworkImgRe                = regexp.MustCompile(artworkerImgReStr)
 	ArtworkIDRe                 = regexp.MustCompile(artworkIDReStr)
 	UserProfileImgSrcRe         = regexp.MustCompile(userProfileImgSrcReStr)
 	UserBookmarkPageUrSuffixlRe = regexp.MustCompile(userPookmarkPageUrlSuffixReStr)
+	ArkworkerUrlSuffixRe        = regexp.MustCompile(arkworkerUrlSuffixReStr)
 )

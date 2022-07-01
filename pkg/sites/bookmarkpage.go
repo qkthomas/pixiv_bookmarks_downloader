@@ -300,7 +300,8 @@ func getUserID(ctx context.Context) (err error) {
 	return nil
 }
 
-func iterateBookmarkPages(ctx context.Context, maxIteration int) (err error) {
+func iterateBookmarkPages(ctx context.Context, maxIteration int,
+	toDo func(context.Context) error) (err error) {
 
 	waitDownload := listenForNetworkEventAndDownloadBookmarkThumbnails(ctx)
 	defer func() {
@@ -315,6 +316,13 @@ func iterateBookmarkPages(ctx context.Context, maxIteration int) (err error) {
 	warning := getUserID(ctx)
 	if warning != nil {
 		fmt.Printf("failed to get user ID: %+v", warning)
+	}
+
+	if toDo != nil {
+		err = toDo(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to do toDo(): %+v", err)
+		}
 	}
 
 	ithIteration := 2 //you will be on the 2nd page the 1st time when you click the next page button
@@ -337,8 +345,93 @@ func iterateBookmarkPages(ctx context.Context, maxIteration int) (err error) {
 		if err != nil {
 			return fmt.Errorf("failed to go to next bookmark page and scroll to the bottom: %+v", err)
 		}
+		if toDo != nil {
+			err = toDo(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to do toDo(): %+v", err)
+			}
+		}
 		if toStop() {
 			break
+		}
+	}
+	return nil
+}
+
+func getBookmarkItemThumbnailNodes(ctx context.Context) (imgNodes []*cdp.Node, err error) {
+	nodes, err := common.GetAllImgNodes(ctx)
+	if err != nil {
+		return imgNodes, fmt.Errorf("failed to get all img nodes: %+v", err)
+	}
+	nodesAttrsMap := common.GetNodesAttrsMap(nodes)
+	for node, attrs := range nodesAttrsMap {
+		if node.Parent == nil {
+			continue
+		}
+		if node.Parent.LocalName != config.DivNodeSel {
+			continue
+		}
+		if node.Parent.Parent == nil {
+			continue
+		}
+		if node.Parent.Parent.LocalName != config.AnchorNodeSel {
+			continue
+		}
+		srcVal := attrs[config.SrcAttrName]
+		filenamePrefix := common.Get1stGroupMatch(srcVal, config.ArtworkIDRe)
+		if filenamePrefix == "" {
+			continue
+		}
+		hrefVal := node.Parent.Parent.AttributeValue(config.HrefAttrName)
+		artworkID := common.Get1stGroupMatch(hrefVal, config.ArkworkerUrlSuffixRe)
+		if artworkID == "" {
+			continue
+		}
+		imgNodes = append(imgNodes, node)
+	}
+	return imgNodes, nil
+}
+
+func getBookmarkItemAnchorNodes(ctx context.Context) (anchorNodes []*cdp.Node, err error) {
+	imgNodes, err := getBookmarkItemThumbnailNodes(ctx)
+	if err != nil {
+		return anchorNodes, fmt.Errorf("failed to get thumbnail img nodes: %v", err)
+	}
+	for _, imgNode := range imgNodes {
+		anchorNodes = append(anchorNodes, imgNode.Parent.Parent)
+	}
+	return anchorNodes, nil
+}
+
+func openBookmarkItemInNewTab(ctx context.Context,
+	toDo func(context.Context) error) (err error) {
+	anchorNodes, err := getBookmarkItemAnchorNodes(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get bookmark item anchor nodes: %+v", err)
+	}
+	for _, node := range anchorNodes {
+		err = func() error {
+			newTabCtx, cancel, err := common.ClickOnAnchorAndOpenNewTab(ctx, node)
+			defer func() {
+				cancel()
+			}()
+			if err != nil {
+				return fmt.Errorf("failed to click on anchor and open new tab: %+v", err)
+			}
+			//wait for some time for the page to be loaded
+			chromedp.Run(newTabCtx,
+				chromedp.Sleep(time.Second*3),
+			)
+			if toDo != nil {
+				err = toDo(newTabCtx)
+				if err != nil {
+					return fmt.Errorf("failed to do toDo(): %+v", err)
+				}
+			}
+			return nil
+		}()
+		if err != nil {
+			return err
 		}
 	}
 	return nil

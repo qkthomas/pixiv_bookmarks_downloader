@@ -8,3 +8,5 @@
 *.png
 *.txt
 *.exe
+# ignore vendor
+vendor/*
