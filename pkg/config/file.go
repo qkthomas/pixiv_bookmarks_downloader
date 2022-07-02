@@ -45,12 +45,13 @@ type configFile struct {
 	UserID                   string `yaml:"UserID"`
 	MaxBookmarkPageIteration int    `yaml:"MaxBookmarkPageIteration"`
 	//some text for helping locate html nodes
-	UsernameInputPH         string `yaml:"UsernameInputPlaceHolder"`
-	PasswordInputPH         string `yaml:"PasswordInputPlaceHolder"`
-	LoginButtonText         string `yaml:"LoginButtonText"`
-	LogoutButtonText        string `yaml:"LogoutButtonText"`
-	ConfirmLogoutButtonText string `yaml:"ConfirmLogoutButtonText"`
-	BookmarkAnchorText      string `yaml:"BookmarkAnchorText"`
+	UsernameInputPH            string `yaml:"UsernameInputPlaceHolder"`
+	PasswordInputPH            string `yaml:"PasswordInputPlaceHolder"`
+	LoginButtonText            string `yaml:"LoginButtonText"`
+	LogoutButtonText           string `yaml:"LogoutButtonText"`
+	ConfirmLogoutButtonText    string `yaml:"ConfirmLogoutButtonText"`
+	BookmarkAnchorText         string `yaml:"BookmarkAnchorText"`
+	BookmarkTutorialBannerText string `yaml:"BookmarkTutorialBannerText"`
 }
 
 func init() {

@@ -241,7 +241,7 @@ func getBookmarkAnchorNode(ctx context.Context) (bookmarkAnchorNode *cdp.Node, e
 	if err != nil {
 		return bookmarkAnchorNode, fmt.Errorf("unable to get all anchor nodes: %+v", err)
 	}
-	return getNodeWithText(ctx, config.Config.BookmarkAnchorText, nodes)
+	return common.GetNodeWithText(ctx, config.Config.BookmarkAnchorText, nodes)
 }
 
 func goToBookmarkPage(ctx context.Context) (err error) {
@@ -271,6 +271,12 @@ func goToBookmarkPageAndScrollToTheButtom(ctx context.Context) (err error) {
 	err = goToBookmarkPage(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to go to bookmark page: %+v", err)
+	}
+
+	// dismiss tutorials banners
+	err = dismissTutorialBanner(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to dismiss tutorial banners: %+v", err)
 	}
 
 	err = common.ScrollToButtomOfPage(ctx)
@@ -326,21 +332,18 @@ func iterateBookmarkPages(ctx context.Context, maxIteration int,
 	}
 
 	ithIteration := 2 //you will be on the 2nd page the 1st time when you click the next page button
-	toStop := func() bool {
-		defer func() {
-			ithIteration++
-		}()
+	toContinue := func() bool {
 		if maxIteration <= 0 {
-			return false
+			return true
 		}
 		if ithIteration < maxIteration {
-			return false
+			return true
 		}
-		return true
+		return false
 	}
 
 	var noNext bool
-	for !noNext {
+	for !noNext && toContinue() {
 		noNext, err = goToNextBookmarkPageAndScrollToTheButtom(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to go to next bookmark page and scroll to the bottom: %+v", err)
@@ -351,9 +354,7 @@ func iterateBookmarkPages(ctx context.Context, maxIteration int,
 				return fmt.Errorf("failed to do toDo(): %+v", err)
 			}
 		}
-		if toStop() {
-			break
-		}
+		ithIteration++
 	}
 	return nil
 }
@@ -420,7 +421,7 @@ func openBookmarkItemInNewTab(ctx context.Context,
 			}
 			//wait for some time for the page to be loaded
 			chromedp.Run(newTabCtx,
-				chromedp.Sleep(time.Second*3),
+				chromedp.Sleep(2*time.Second),
 			)
 			if toDo != nil {
 				err = toDo(newTabCtx)
@@ -433,6 +434,49 @@ func openBookmarkItemInNewTab(ctx context.Context,
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func getCloseTutorialBannerButton(ctx context.Context) (closeButton *cdp.Node, err error) {
+	maxRetry := 2
+	i := 0
+	for closeButton == nil && i < maxRetry {
+		nodes, err := common.GetAllDivNodes(ctx)
+		if err != nil {
+			return closeButton, fmt.Errorf("failed to get all div nodes: %+v", err)
+		}
+		bannerTextDivNode, err := common.GetNodeWithText(ctx, config.Config.BookmarkTutorialBannerText, nodes)
+		if err != nil {
+			return closeButton, fmt.Errorf("failed to get node with text \"%s\": %+v", config.Config.BookmarkTutorialBannerText, err)
+		}
+
+		err = common.RequestSubtree(ctx, bannerTextDivNode.Parent)
+		if err != nil {
+			return closeButton, fmt.Errorf("failed to request subtree of tutorial banner: %+v", err)
+		}
+
+		closeButton = common.GetFirstDescendantOfSlibingNodes(bannerTextDivNode, config.SvgNodeSel)
+		if closeButton != nil {
+			return closeButton, nil
+		}
+		i++
+	}
+	return closeButton, fmt.Errorf("no close svg node found after %d retry", maxRetry)
+}
+
+func dismissTutorialBanner(ctx context.Context) (err error) {
+	closeButton, err := getCloseTutorialBannerButton(ctx)
+	if err != nil {
+		return fmt.Errorf("failed get the close button of tutorial banner: %+v", err)
+	}
+
+	err = chromedp.Run(ctx,
+		chromedp.MouseClickNode(closeButton),
+		chromedp.Sleep(time.Second),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to close button of tutorial banner: %+v", err)
 	}
 	return nil
 }

@@ -26,11 +26,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
-	"sync"
-	"time"
 
 	"github.com/chromedp/cdproto/cdp"
-	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/config"
 )
@@ -117,28 +114,61 @@ func SaveScreenshotsOfThumbnailNodes(ctx context.Context, imgNodes []*cdp.Node) 
 	return saveScreenshotsOfNodes(ctx, imgNodes, howToSave)
 }
 
-func StartSavingResponseToFile(wg *sync.WaitGroup, ctx context.Context, requestID network.RequestID, filepath string) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		time.Sleep(config.SavingRespWaitDura) //sleep for trying to avoid incomplete images
-		param := network.GetResponseBody(requestID)
-		if param == nil {
-			return
+func GetFirstDescendantOfSlibingNodes(node *cdp.Node, descendantNodeLocalName string) *cdp.Node {
+	if node.Parent == nil {
+		return nil
+	}
+	if len(node.Parent.Children) <= 0 {
+		return nil
+	}
+	for _, siblingNode := range node.Parent.Children {
+		if siblingNode == nil {
+			continue
 		}
-		c := chromedp.FromContext(ctx)
-		buf, err := param.Do(cdp.WithExecutor(ctx, c.Target))
-		if err != nil {
-			fmt.Printf("error when doing param.Do(ctx): %+v\n", err)
-			return
+		matchedNode := getFirstDescendantOfNode(siblingNode, descendantNodeLocalName)
+		if matchedNode != nil {
+			return matchedNode
 		}
-		fmt.Printf("writing to file \"%s\"\n", filepath)
-		if err := ioutil.WriteFile(filepath, buf, config.WriteFilePermission); err != nil {
-			fmt.Printf("error: failed to write to %s: %+v\n", filepath, err)
-			return
+	}
+	return nil
+}
+
+func getFirstDescendantOfNode(node *cdp.Node, descendantNodeLocalName string) *cdp.Node {
+	for _, childNode := range node.Children {
+		if childNode == nil {
+			continue
 		}
-		fmt.Printf("wrote %s\n", filepath)
-	}()
+		if childNode.LocalName == descendantNodeLocalName {
+			return childNode
+		}
+		matchedNode := getFirstDescendantOfNode(childNode, descendantNodeLocalName)
+		if matchedNode != nil {
+			return matchedNode
+		}
+	}
+	return nil
+}
+
+func GetNodeWithText(ctx context.Context, textToMatch string, nodes []*cdp.Node) (nodeWithText *cdp.Node, err error) {
+	var nodesWithText []*cdp.Node
+	for _, node := range nodes {
+		if len(node.Children) <= 0 {
+			continue
+		}
+		for _, childNode := range node.Children {
+			if childNode == nil {
+				continue
+			}
+			if childNode.NodeType == cdp.NodeTypeText && childNode.NodeValue == textToMatch {
+				nodesWithText = append(nodesWithText, node)
+				break
+			}
+		}
+	}
+	if len(nodesWithText) <= 0 {
+		return nodeWithText, fmt.Errorf("no node found with text \"%s\"", textToMatch)
+	}
+	return nodesWithText[0], nil
 }
 
 func getAllNodes(ctx context.Context, sel string,
@@ -180,4 +210,8 @@ func GetAllImgNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
 
 func GetAllSvgNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
 	return getAllNodes(ctx, config.SvgNodeSel, nil)
+}
+
+func GetAllDivNodes(ctx context.Context) (nodes []*cdp.Node, err error) {
+	return getAllNodes(ctx, config.DivNodeSel, nil)
 }

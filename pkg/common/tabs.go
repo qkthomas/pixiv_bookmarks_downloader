@@ -73,7 +73,7 @@ func ClickOnAnchorAndOpenNewTab(ctx context.Context, node *cdp.Node) (newTabCtx 
 			if err != nil {
 				return newTabCtx, cancelFunc, fmt.Errorf("failed to active target (id %s): %+v", t.TargetID, err)
 			}
-			sleepTime := 3 * time.Second
+			sleepTime := time.Second
 			err = chromedp.Run(newTabCtx,
 				chromedp.Sleep(sleepTime),
 			)

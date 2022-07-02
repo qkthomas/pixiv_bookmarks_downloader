@@ -50,7 +50,7 @@ func getSubmitButtonNode(ctx context.Context, buttonText string) (submitButtonNo
 		return submitButtonNode, fmt.Errorf("no button node found with %s attr value = \"%s\"", config.TypeAttrName, submitButtonTypeAttrVal)
 	}
 
-	return getNodeWithText(ctx, buttonText, submitButtonNodes)
+	return common.GetNodeWithText(ctx, buttonText, submitButtonNodes)
 }
 
 func DoPixiv(ctx context.Context) {
@@ -71,22 +71,6 @@ func DoPixiv(ctx context.Context) {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func getNodeWithText(ctx context.Context, textToMatch string, nodes []*cdp.Node) (nodeWithText *cdp.Node, err error) {
-	for _, node := range nodes {
-		var text string
-		err = chromedp.Run(ctx,
-			chromedp.Text(config.AnySel, &text, chromedp.ByQuery, common.TargetNode(node)),
-		)
-		if err != nil {
-			return nodeWithText, fmt.Errorf("failed to get text from node: %+v", err)
-		}
-		if text == textToMatch {
-			return node, nil
-		}
-	}
-	return nodeWithText, fmt.Errorf("no node found with text \"%s\"", textToMatch)
 }
 
 func getUserProfileImgNode(ctx context.Context) (userProfileImgNode *cdp.Node, err error) {

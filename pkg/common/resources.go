@@ -24,11 +24,39 @@ package common
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"sync"
+	"time"
 
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
+	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/config"
 )
+
+func StartSavingResponseToFile(wg *sync.WaitGroup, ctx context.Context, requestID network.RequestID, filepath string) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		time.Sleep(config.SavingRespWaitDura) //sleep for trying to avoid incomplete images
+		param := network.GetResponseBody(requestID)
+		if param == nil {
+			return
+		}
+		c := chromedp.FromContext(ctx)
+		buf, err := param.Do(cdp.WithExecutor(ctx, c.Target))
+		if err != nil {
+			fmt.Printf("error when doing param.Do(ctx): %+v\n", err)
+			return
+		}
+		fmt.Printf("writing to file \"%s\"\n", filepath)
+		if err := ioutil.WriteFile(filepath, buf, config.WriteFilePermission); err != nil {
+			fmt.Printf("error: failed to write to %s: %+v\n", filepath, err)
+			return
+		}
+		fmt.Printf("wrote %s\n", filepath)
+	}()
+}
 
 func ListenForNetworkEventAndDownloadImages(ctx context.Context,
 	urlMatcher func(string) (string, bool)) (waitFunc func()) {
