@@ -451,14 +451,15 @@ func getCloseTutorialBannerButton(ctx context.Context) (closeButton *cdp.Node, e
 			return closeButton, fmt.Errorf("failed to get node with text \"%s\": %+v", config.Config.BookmarkTutorialBannerText, err)
 		}
 
-		err = common.RequestSubtree(ctx, bannerTextDivNode.Parent)
-		if err != nil {
-			return closeButton, fmt.Errorf("failed to request subtree of tutorial banner: %+v", err)
-		}
-
 		closeButton = common.GetFirstDescendantOfSlibingNodes(bannerTextDivNode, config.SvgNodeSel)
 		if closeButton != nil {
 			return closeButton, nil
+		}
+
+		// some nodes might not be retrieved due to memory limit. Therefore, do an explicit request.
+		err = common.RequestSubtree(ctx, bannerTextDivNode.Parent)
+		if err != nil {
+			return closeButton, fmt.Errorf("failed to request subtree of tutorial banner: %+v", err)
 		}
 		i++
 	}
