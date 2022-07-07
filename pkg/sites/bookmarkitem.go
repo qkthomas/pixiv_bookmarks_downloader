@@ -24,14 +24,15 @@ package sites
 import (
 	"context"
 	"fmt"
-	"path"
 	"strings"
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/kb"
 	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/common"
 	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/config"
+	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/download"
 )
 
 const (
@@ -109,20 +110,6 @@ func getArtworkImgNode(ctx context.Context) (imgNode *cdp.Node, err error) {
 	return imgNode, fmt.Errorf("no img node has \"%s\" attr value matchs regex \"%s\"", config.SrcAttrName, config.ArtworkImgRe.String())
 }
 
-func listenForNetworkEventAndDownloadArtworkImage(ctx context.Context) (waitFunc func()) {
-	urlMatcher := func(url string) (filePath string, isMatched bool) {
-		artworkID := common.Get1stGroupMatch(url, config.ArtworkImgRe)
-		if artworkID == "" {
-			return filePath, false
-		}
-		filename := path.Base(url)
-		filePath = fmt.Sprintf("%s/%s", config.SavedFileLocation, filename)
-		return filePath, true
-	}
-
-	return common.ListenForNetworkEventAndDownloadImages(ctx, urlMatcher)
-}
-
 func downloadMultiImgsArtwork(ctx context.Context, anchorNode *cdp.Node) (err error) {
 	err = chromedp.Run(ctx,
 		chromedp.Click(config.ImgNodeSel, chromedp.ByQuery, chromedp.FromNode(anchorNode)),
@@ -143,10 +130,7 @@ func downloadMultiImgsArtwork(ctx context.Context, anchorNode *cdp.Node) (err er
 		for imgNode == nil {
 			//keep clicking until it actually zoomed into the full res image for working wround two different clicking behaviors (move up/down or zoom in)
 			//to zoom in
-			err := chromedp.Run(ctx,
-				chromedp.MouseClickNode(anchorNode),
-				chromedp.Sleep(config.SavingRespWaitDura),
-			)
+			err := downloadSingleImgArtwork(ctx, anchorNode)
 			if err != nil {
 				return fmt.Errorf("failed to click on artwork image: %+v", err)
 			}
@@ -157,10 +141,7 @@ func downloadMultiImgsArtwork(ctx context.Context, anchorNode *cdp.Node) (err er
 			}
 		}
 
-		err = chromedp.Run(ctx,
-			chromedp.MouseClickNode(imgNode),
-			chromedp.Sleep(time.Second),
-		)
+		err = EscapeFromFullResImg2(ctx)
 		if err != nil {
 			return fmt.Errorf("unable to click on img node for artwork: %+v", err)
 		}
@@ -171,7 +152,7 @@ func downloadMultiImgsArtwork(ctx context.Context, anchorNode *cdp.Node) (err er
 func downloadSingleImgArtwork(ctx context.Context, anchorNode *cdp.Node) (err error) {
 	return chromedp.Run(ctx,
 		chromedp.MouseClickNode(anchorNode),
-		chromedp.Sleep(config.SavingRespWaitDura),
+		chromedp.Sleep(time.Second),
 	)
 
 }
@@ -182,9 +163,10 @@ func downloadArtwork(ctx context.Context) (err error) {
 		return fmt.Errorf("unable to find anchor node of artwork: %+v", err)
 	}
 
-	waitDownload := listenForNetworkEventAndDownloadArtworkImage(ctx)
+	waitDownload := download.ListenForNetworkEventAndDownloadArtworkImage(ctx)
 	defer func() {
-		waitDownload()
+		errs := []error{err, waitDownload()}
+		err = common.ConcatenateErrors(errs...)
 	}()
 
 	if multiImgs {
@@ -213,4 +195,18 @@ func navigateToArtworkPageAndDownloadArtwork(ctx context.Context, url string) (e
 	}
 
 	return nil
+}
+
+func EscapeFromFullResImg1(ctx context.Context, imgNode *cdp.Node) (err error) {
+	return chromedp.Run(ctx,
+		chromedp.MouseClickNode(imgNode),
+		chromedp.Sleep(time.Second),
+	)
+}
+
+func EscapeFromFullResImg2(ctx context.Context) (err error) {
+	return chromedp.Run(ctx,
+		chromedp.KeyEvent(kb.Escape),
+		chromedp.Sleep(time.Second),
+	)
 }

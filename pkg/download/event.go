@@ -21,13 +21,11 @@
 // SOFTWARE.
 package download
 
-import (
-	"github.com/google/uuid"
-)
+import "github.com/chromedp/cdproto/network"
 
 type EventHandle = func() (selfRemove bool, err error)
 
 type Event struct {
-	id     uuid.UUID
+	id     network.RequestID
 	handle EventHandle
 }

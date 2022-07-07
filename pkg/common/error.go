@@ -24,7 +24,46 @@ package common
 import (
 	"fmt"
 	"strings"
+	"sync"
 )
+
+type Errors struct {
+	lock   sync.Mutex
+	errors []error
+}
+
+// Add adds a new error
+func (c *Errors) Add(err error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err == nil {
+		return
+	}
+	c.errors = append(c.errors, err)
+}
+
+// Get gets all error in the struct
+func (c *Errors) Get() error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	return ConcatenateErrors(c.errors...)
+}
+
+// Get gets all error in the struct
+func (c *Errors) Size() int {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	return len(c.errors)
+}
+
+// Clean cleans list of errors
+func (c *Errors) Clean() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.errors = nil
+}
 
 func ConcatenateErrors(errors ...error) error {
 	var errorSlice []string

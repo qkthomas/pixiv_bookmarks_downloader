@@ -24,7 +24,6 @@ package sites
 import (
 	"context"
 	"fmt"
-	"path"
 	"strconv"
 	"time"
 
@@ -32,28 +31,16 @@ import (
 	"github.com/chromedp/chromedp"
 	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/common"
 	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/config"
+	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/download"
 )
-
-func listenForNetworkEventAndDownloadBookmarkThumbnails(ctx context.Context) (waitFunc func()) {
-	urlMatcher := func(url string) (filePath string, isMatched bool) {
-		filenamePrefix := common.Get1stGroupMatch(url, config.ArtworkIDRe)
-		if filenamePrefix == "" {
-			return filePath, false
-		}
-		filename := path.Base(url)
-		filePath = fmt.Sprintf("%s/%s", config.ThumbnailsFileLocation, filename)
-		return filePath, true
-	}
-
-	return common.ListenForNetworkEventAndDownloadImages(ctx, urlMatcher)
-}
 
 func printBookmarkPage(ctx context.Context, bookmarkPage string, screenshotBuf *[]byte) (err error) {
 	var thumbnailNodes []*cdp.Node
 
-	waitDownload := listenForNetworkEventAndDownloadBookmarkThumbnails(ctx)
+	waitDownload := download.ListenForNetworkEventAndDownloadBookmarkThumbnails(ctx)
 	defer func() {
-		waitDownload()
+		errs := []error{err, waitDownload()}
+		err = common.ConcatenateErrors(errs...)
 	}()
 
 	err = chromedp.Run(ctx,
@@ -309,9 +296,10 @@ func getUserID(ctx context.Context) (err error) {
 func iterateBookmarkPages(ctx context.Context, maxIteration int,
 	toDo func(context.Context) error) (err error) {
 
-	waitDownload := listenForNetworkEventAndDownloadBookmarkThumbnails(ctx)
+	waitDownload := download.ListenForNetworkEventAndDownloadBookmarkThumbnails(ctx)
 	defer func() {
-		waitDownload()
+		errs := []error{err, waitDownload()}
+		err = common.ConcatenateErrors(errs...)
 	}()
 
 	err = goToBookmarkPageAndScrollToTheButtom(ctx)

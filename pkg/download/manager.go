@@ -23,8 +23,9 @@ package download
 
 import (
 	"fmt"
+	"sync"
 
-	"github.com/google/uuid"
+	"github.com/chromedp/cdproto/network"
 )
 
 var (
@@ -32,41 +33,58 @@ var (
 )
 
 type eventManager struct {
-	events map[uuid.UUID]Event
+	events      map[network.RequestID]Event
+	eventsMutex sync.Mutex
 }
 
-func (manager *eventManager) RegisterEvent(eh EventHandle) (id uuid.UUID) {
-	id = uuid.New()
-	for {
-		_, duplicate := manager.events[id]
-		if !duplicate {
-			//the id is ok
-			break
-		}
-		//to generate a new id
-		id = uuid.New()
+func (manager *eventManager) RegisterEvent(requestID network.RequestID, eh EventHandle) {
+	manager.eventsMutex.Lock()
+	defer manager.eventsMutex.Unlock()
+	if manager.events == nil {
+		manager.events = make(map[network.RequestID]Event)
 	}
-	manager.events[id] = Event{
-		id:     id,
+	manager.events[requestID] = Event{
+		id:     requestID,
 		handle: eh,
 	}
-	return id
 }
 
-func (manager *eventManager) TriggerEvent(id uuid.UUID) (err error) {
-	event, exist := manager.events[id]
+func (manager *eventManager) triggerEvent(requestID network.RequestID,
+	errFuncWhenEventNotExist func(network.RequestID, Event) error) (err error) {
+	manager.eventsMutex.Lock()
+	defer manager.eventsMutex.Unlock()
+
+	if errFuncWhenEventNotExist == nil {
+		//avoid panic
+		errFuncWhenEventNotExist = func(requestID network.RequestID, ev Event) error {
+			return nil
+		}
+	}
+
+	event, exist := manager.events[requestID]
 	if !exist {
-		return fmt.Errorf("event with id \"%s\" does not exist", id.String())
+		return errFuncWhenEventNotExist(requestID, event)
 	}
 	var selfRemove bool
 	defer func() {
 		if selfRemove {
-			delete(manager.events, id)
+			delete(manager.events, requestID)
 		}
 	}()
 	selfRemove, err = event.handle()
-	if err != nil {
-		return err
+	return err
+}
+
+func (manager *eventManager) TriggerEvent(requestID network.RequestID) (err error) {
+	errFuncWhenEventNotExist := func(requestID network.RequestID, ev Event) error {
+		return fmt.Errorf("event with id \"%s\" does not exist", requestID.String())
 	}
-	return nil
+	return manager.triggerEvent(requestID, errFuncWhenEventNotExist)
+}
+
+func (manager *eventManager) TriggerEventIfExist(requestID network.RequestID) (err error) {
+	errFuncWhenEventNotExist := func(requestID network.RequestID, ev Event) error {
+		return nil
+	}
+	return manager.triggerEvent(requestID, errFuncWhenEventNotExist)
 }
