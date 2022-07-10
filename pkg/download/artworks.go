@@ -100,7 +100,16 @@ func listenForNetworkEventAndDownloadImages(ctx context.Context,
 
 	waitItemChan := make(chan struct{}, 100)
 	var errs common.Errors
+	eventQueue := make(chan interface{}, 1000) //how big is enough?
+	var mutex sync.Mutex
+	var isEventQueueClosed bool
 	waitFunc = func(numberOfImg int) error {
+		defer func() {
+			mutex.Lock()
+			close(eventQueue) //will it cause panic?
+			isEventQueueClosed = true
+			mutex.Unlock()
+		}()
 		fmt.Printf("waiting writing %d files to be done\n", numberOfImg)
 		fmt.Printf("debug: len(waitItemChan)=%d\n", len(waitItemChan))
 		for i := 1; i <= numberOfImg; i++ {
@@ -117,24 +126,18 @@ func listenForNetworkEventAndDownloadImages(ctx context.Context,
 		return false
 	}
 
-	//using a mutex to make sure finishing handling one event before the handling next one
-	var mutex sync.Mutex
-	chromedp.ListenTarget(ctx, func(ev interface{}) {
-		//using a go routine to avoid blocking
-		go func() {
-			mutex.Lock()
-			defer mutex.Unlock()
+	go func() {
+		for ev := range eventQueue {
 			switch ev := ev.(type) {
-
 			case *network.EventResponseReceived:
 				if !eventRespChecker(ev) {
-					return
+					continue
 				}
 
 				resp := ev.Response
 				filePath, toDownload := urlMatcher(resp.URL)
 				if !toDownload {
-					return
+					continue
 				}
 
 				requestID := ev.RequestID
@@ -153,7 +156,21 @@ func listenForNetworkEventAndDownloadImages(ctx context.Context,
 				fmt.Printf("trigger event: requestID: \"%s\"\n", requestID)
 				errs.Add(Manager.TriggerEventIfExist(requestID))
 			}
-		}()
+		}
+	}()
+
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		mutex.Lock()
+		defer mutex.Unlock()
+		if isEventQueueClosed {
+			return
+		}
+		switch ev := ev.(type) {
+		case *network.EventResponseReceived:
+			eventQueue <- ev
+		case *network.EventLoadingFinished:
+			eventQueue <- ev
+		}
 	})
 
 	return waitFunc
