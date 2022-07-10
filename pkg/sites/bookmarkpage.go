@@ -35,11 +35,11 @@ import (
 )
 
 func printBookmarkPage(ctx context.Context, bookmarkPage string, screenshotBuf *[]byte) (err error) {
-	var thumbnailNodes []*cdp.Node
 
+	var numberOfItems int
 	waitDownload := download.ListenForNetworkEventAndDownloadBookmarkThumbnails(ctx)
 	defer func() {
-		errs := []error{err, waitDownload()}
+		errs := []error{err, waitDownload(numberOfItems)}
 		err = common.ConcatenateErrors(errs...)
 	}()
 
@@ -64,12 +64,16 @@ func printBookmarkPage(ctx context.Context, bookmarkPage string, screenshotBuf *
 		chromedp.Sleep(2*time.Second),
 		// take screenshot
 		chromedp.FullScreenshot(screenshotBuf, 90),
-		// get thumbnailNodes
-		chromedp.Nodes(config.ThumbnailNodeSel, &thumbnailNodes, chromedp.ByQueryAll),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to take screenshot or get thumnail nodes: %+v", err)
 	}
+
+	thumbnailNodes, err := getBookmarkItemThumbnailNodes(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to get thumbnail nodes on bookmark page: %+v", err)
+	}
+	numberOfItems = len(thumbnailNodes)
 
 	common.PrintNodesAltAndSrc(thumbnailNodes)
 	common.SaveScreenshotsOfThumbnailNodes(ctx, thumbnailNodes)
@@ -201,26 +205,36 @@ func goToNextBookmarkPage(ctx context.Context) (noNext bool, err error) {
 	return noNext, nil
 }
 
-func goToNextBookmarkPageAndScrollToTheButtom(ctx context.Context) (noNext bool, err error) {
+func goToNextBookmarkPageAndScrollToTheButtom(ctx context.Context) (noNext bool, numberOfThumbails int, err error) {
 	noNext, err = goToNextBookmarkPage(ctx)
 	if err != nil {
-		return noNext, fmt.Errorf("failed to go to next bookmark page: %+v", err)
+		return noNext, numberOfThumbails, fmt.Errorf("failed to go to next bookmark page: %+v", err)
 	}
 
 	if noNext {
-		return noNext, nil
+		return noNext, numberOfThumbails, nil
 	}
 
 	err = common.ScrollToButtomOfPage(ctx)
 	if err != nil {
-		return noNext, fmt.Errorf("unable to scroll to the buttom of page: %+v", err)
+		return noNext, numberOfThumbails, fmt.Errorf("unable to scroll to the buttom of page: %+v", err)
 	}
 
 	//just wait for some time for all bookmark items thumbnails to be loaded
 	err = chromedp.Run(ctx,
 		chromedp.Sleep(time.Second*3),
 	)
-	return noNext, err
+
+	if err != nil {
+		return noNext, numberOfThumbails, err
+	}
+
+	thumbnailNails, err := getBookmarkItemThumbnailNodes(ctx)
+	if err != nil {
+		return noNext, len(thumbnailNails), fmt.Errorf("unable to get thumbnail nodes on bookmark page: %+v", err)
+	}
+
+	return noNext, len(thumbnailNails), nil
 }
 
 func getBookmarkAnchorNode(ctx context.Context) (bookmarkAnchorNode *cdp.Node, err error) {
@@ -254,27 +268,38 @@ func goToBookmarkPage(ctx context.Context) (err error) {
 	return nil
 }
 
-func goToBookmarkPageAndScrollToTheButtom(ctx context.Context) (err error) {
+func goToBookmarkPageAndScrollToTheButtom(ctx context.Context) (numberOfThumbails int, err error) {
 	err = goToBookmarkPage(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to go to bookmark page: %+v", err)
+		return numberOfThumbails, fmt.Errorf("failed to go to bookmark page: %+v", err)
 	}
 
 	// dismiss tutorials banners
 	err = dismissTutorialBanner(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to dismiss tutorial banners: %+v", err)
+		return numberOfThumbails, fmt.Errorf("failed to dismiss tutorial banners: %+v", err)
 	}
 
 	err = common.ScrollToButtomOfPage(ctx)
 	if err != nil {
-		return fmt.Errorf("unable to scroll to the buttom of page: %+v", err)
+		return numberOfThumbails, fmt.Errorf("unable to scroll to the buttom of page: %+v", err)
 	}
 
 	//just wait for some time for all bookmark items thumbnails to be loaded
-	return chromedp.Run(ctx,
+	err = chromedp.Run(ctx,
 		chromedp.Sleep(time.Second*3),
 	)
+
+	if err != nil {
+		return numberOfThumbails, err
+	}
+
+	thumbnailNails, err := getBookmarkItemThumbnailNodes(ctx)
+	if err != nil {
+		return numberOfThumbails, fmt.Errorf("unable to get thumbnail nodes on bookmark page: %+v", err)
+	}
+
+	return len(thumbnailNails), nil
 }
 
 func getUserID(ctx context.Context) (err error) {
@@ -296,13 +321,14 @@ func getUserID(ctx context.Context) (err error) {
 func iterateBookmarkPages(ctx context.Context, maxIteration int,
 	toDo func(context.Context) error) (err error) {
 
+	var numberOfItems int
 	waitDownload := download.ListenForNetworkEventAndDownloadBookmarkThumbnails(ctx)
 	defer func() {
-		errs := []error{err, waitDownload()}
+		errs := []error{err, waitDownload(numberOfItems)}
 		err = common.ConcatenateErrors(errs...)
 	}()
 
-	err = goToBookmarkPageAndScrollToTheButtom(ctx)
+	numberOfItems, err = goToBookmarkPageAndScrollToTheButtom(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to go to bookmark page and scroll to the bottom: %+v", err)
 	}
@@ -332,10 +358,12 @@ func iterateBookmarkPages(ctx context.Context, maxIteration int,
 
 	var noNext bool
 	for !noNext && toContinue() {
-		noNext, err = goToNextBookmarkPageAndScrollToTheButtom(ctx)
+		var numberOfThumnbnails int
+		noNext, numberOfThumnbnails, err = goToNextBookmarkPageAndScrollToTheButtom(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to go to next bookmark page and scroll to the bottom: %+v", err)
 		}
+		numberOfItems += numberOfThumnbnails
 		if toDo != nil {
 			err = toDo(ctx)
 			if err != nil {

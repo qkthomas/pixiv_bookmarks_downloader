@@ -25,7 +25,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"sync"
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
@@ -34,7 +33,7 @@ import (
 	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/config"
 )
 
-func StartSavingResponseToFile(wg *sync.WaitGroup, ctx context.Context, requestID network.RequestID, filepath string) (err error) {
+func StartSavingResponseToFile(ctx context.Context, requestID network.RequestID, filepath string) (err error) {
 	param := network.GetResponseBody(requestID)
 	if param == nil {
 		return

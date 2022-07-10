@@ -33,8 +33,25 @@ import (
 	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/config"
 )
 
-func ListenForNetworkEventAndDownloadBookmarkThumbnails(ctx context.Context) (waitFunc func() error) {
+func ListenForNetworkEventAndDownloadBookmarkThumbnails(ctx context.Context) (waitFunc func(int) error) {
+	//do not do duplicate download
+	var mutex sync.Mutex
+	downloadedUrls := make(map[string]struct{})
+	checkDuplicate := func(url string) (toDownload bool) {
+		mutex.Lock()
+		defer mutex.Unlock()
+		_, wasDownloaded := downloadedUrls[url]
+		if wasDownloaded {
+			return false
+		}
+		downloadedUrls[url] = struct{}{}
+		return true
+	}
 	urlMatcher := func(url string) (filePath string, isMatched bool) {
+		toDownload := checkDuplicate(url)
+		if !toDownload {
+			return filePath, false
+		}
 		filenamePrefix := common.Get1stGroupMatch(url, config.ArtworkIDRe)
 		if filenamePrefix == "" {
 			return filePath, false
@@ -47,8 +64,25 @@ func ListenForNetworkEventAndDownloadBookmarkThumbnails(ctx context.Context) (wa
 	return listenForNetworkEventAndDownloadImages(ctx, urlMatcher)
 }
 
-func ListenForNetworkEventAndDownloadArtworkImage(ctx context.Context) (waitFunc func() error) {
+func ListenForNetworkEventAndDownloadArtworkImage(ctx context.Context) (waitFunc func(int) error) {
+	//do not do duplicate download
+	var mutex sync.Mutex
+	downloadedUrls := make(map[string]struct{})
+	checkDuplicate := func(url string) (toDownload bool) {
+		mutex.Lock()
+		defer mutex.Unlock()
+		_, wasDownloaded := downloadedUrls[url]
+		if wasDownloaded {
+			return false
+		}
+		downloadedUrls[url] = struct{}{}
+		return true
+	}
 	urlMatcher := func(url string) (filePath string, isMatched bool) {
+		toDownload := checkDuplicate(url)
+		if !toDownload {
+			return filePath, false
+		}
 		artworkID := common.Get1stGroupMatch(url, config.ArtworkImgRe)
 		if artworkID == "" {
 			return filePath, false
@@ -62,12 +96,16 @@ func ListenForNetworkEventAndDownloadArtworkImage(ctx context.Context) (waitFunc
 }
 
 func listenForNetworkEventAndDownloadImages(ctx context.Context,
-	urlMatcher func(string) (string, bool)) (waitFunc func() error) {
-	wg := new(sync.WaitGroup)
+	urlMatcher func(string) (string, bool)) (waitFunc func(int) error) {
+
+	waitItemChan := make(chan struct{}, 100)
 	var errs common.Errors
-	waitFunc = func() error {
-		fmt.Println("waiting writing files to be done")
-		wg.Wait()
+	waitFunc = func(numberOfImg int) error {
+		fmt.Printf("waiting writing %d files to be done\n", numberOfImg)
+		fmt.Printf("debug: len(waitItemChan)=%d\n", len(waitItemChan))
+		for i := 1; i <= numberOfImg; i++ {
+			_ = <-waitItemChan
+		}
 		return errs.Get()
 	}
 
@@ -99,15 +137,20 @@ func listenForNetworkEventAndDownloadImages(ctx context.Context,
 					return
 				}
 
-				wg.Add(1)
 				requestID := ev.RequestID
+				fmt.Printf("registering event: requestID: \"%s\", url=\"%s\"\n", requestID, resp.URL)
 				Manager.RegisterEvent(requestID, func() (selfRemove bool, err error) {
-					defer wg.Done()
-					err = common.StartSavingResponseToFile(wg, ctx, requestID, filePath)
+					defer func() {
+						waitItemChan <- struct{}{}
+					}()
+					fmt.Printf("start writing to file: requestID: \"%s\", filePath=\"%s\"\n", requestID, filePath)
+					err = common.StartSavingResponseToFile(ctx, requestID, filePath)
+					fmt.Printf("finish writing to file: requestID: \"%s\", filePath=\"%s\"\n", requestID, filePath)
 					return true, err
 				})
 			case *network.EventLoadingFinished:
 				requestID := ev.RequestID
+				fmt.Printf("trigger event: requestID: \"%s\"\n", requestID)
 				errs.Add(Manager.TriggerEventIfExist(requestID))
 			}
 		}()

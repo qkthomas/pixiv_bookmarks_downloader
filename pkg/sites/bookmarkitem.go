@@ -92,11 +92,14 @@ func getAnchorNodesOfArtworkImg(ctx context.Context) (anchors []*cdp.Node, err e
 }
 
 func getArtworkImgNode(ctx context.Context) (imgNode *cdp.Node, err error) {
+	fmt.Printf("debug: enter getArtworkImgNode()\n")
+	defer fmt.Printf("debug: exit getArtworkImgNode()\n")
 	imgNodes, err := common.GetAllImgNodes(ctx)
 	if err != nil {
 		return imgNode, fmt.Errorf("failed to get all img nodes: %+v", err)
 	}
 
+	var matchedNodes []*cdp.Node
 	nodesAttrsMap := common.GetNodesAttrsMap(imgNodes)
 	for node, attrs := range nodesAttrsMap {
 		srcVal := attrs[config.SrcAttrName]
@@ -104,53 +107,68 @@ func getArtworkImgNode(ctx context.Context) (imgNode *cdp.Node, err error) {
 		if artworkID == "" {
 			continue
 		}
-		return node, nil
+		matchedNodes = append(matchedNodes, node)
 	}
 
-	return imgNode, fmt.Errorf("no img node has \"%s\" attr value matchs regex \"%s\"", config.SrcAttrName, config.ArtworkImgRe.String())
+	if len(matchedNodes) <= 0 {
+		return imgNode, fmt.Errorf("no img node has \"%s\" attr value matchs regex \"%s\"", config.SrcAttrName, config.ArtworkImgRe.String())
+	}
+	for i, node := range matchedNodes {
+		fmt.Printf("debug: matchedNodes[%d].src=\"%s\"\n", i, node.AttributeValue(config.SrcAttrName))
+	}
+	return matchedNodes[0], nil
 }
 
-func downloadMultiImgsArtwork(ctx context.Context, anchorNode *cdp.Node) (err error) {
+func downloadMultiImgsArtwork(ctx context.Context, anchorNode *cdp.Node) (totalNumberOfItems int, err error) {
 	err = chromedp.Run(ctx,
 		chromedp.Click(config.ImgNodeSel, chromedp.ByQuery, chromedp.FromNode(anchorNode)),
 		chromedp.Sleep(config.SavingRespWaitDura),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to click on artwork image: %+v", err)
+		return totalNumberOfItems, fmt.Errorf("failed to click on artwork image: %+v", err)
 	}
 
 	anchorNodes, err := getAnchorNodesOfArtworkImg(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get the list of anchor nodes: %+v", err)
+		return totalNumberOfItems, fmt.Errorf("failed to get the list of anchor nodes: %+v", err)
 	}
+	totalNumberOfItems = len(anchorNodes)
 
 	for _, anchorNode := range anchorNodes {
-
+		var err error
 		var imgNode *cdp.Node
-		for imgNode == nil {
+		for {
 			//keep clicking until it actually zoomed into the full res image for working wround two different clicking behaviors (move up/down or zoom in)
 			//to zoom in
-			err := downloadSingleImgArtwork(ctx, anchorNode)
+			_, err = downloadSingleImgArtwork(ctx, anchorNode)
 			if err != nil {
-				return fmt.Errorf("failed to click on artwork image: %+v", err)
+				return totalNumberOfItems, fmt.Errorf("failed to click on artwork image: %+v", err)
 			}
-			//to zoom out
+			//double check if the src of img node match the href of the anchor node
 			imgNode, err = getArtworkImgNode(ctx)
 			if err != nil {
 				fmt.Printf("warning: unable to find img node for full res artwork: %+v. retrying\n", err)
+				continue
+			}
+
+			imgSrc := imgNode.AttributeValue(config.SrcAttrName)
+			aHref := anchorNode.AttributeValue(config.HrefAttrName)
+			if imgSrc == aHref {
+				fmt.Printf("img.src=\"%s\", a.href=\"%s\"\n", imgSrc, aHref)
+				break
 			}
 		}
 
 		err = EscapeFromFullResImg2(ctx)
 		if err != nil {
-			return fmt.Errorf("unable to click on img node for artwork: %+v", err)
+			return totalNumberOfItems, fmt.Errorf("unable to click on img node for artwork: %+v", err)
 		}
 	}
-	return nil
+	return totalNumberOfItems, nil
 }
 
-func downloadSingleImgArtwork(ctx context.Context, anchorNode *cdp.Node) (err error) {
-	return chromedp.Run(ctx,
+func downloadSingleImgArtwork(ctx context.Context, anchorNode *cdp.Node) (numberOfItems int, err error) {
+	return 1, chromedp.Run(ctx,
 		chromedp.MouseClickNode(anchorNode),
 		chromedp.Sleep(time.Second),
 	)
@@ -163,16 +181,17 @@ func downloadArtwork(ctx context.Context) (err error) {
 		return fmt.Errorf("unable to find anchor node of artwork: %+v", err)
 	}
 
+	var numberOfItems int
 	waitDownload := download.ListenForNetworkEventAndDownloadArtworkImage(ctx)
 	defer func() {
-		errs := []error{err, waitDownload()}
+		errs := []error{err, waitDownload(numberOfItems)}
 		err = common.ConcatenateErrors(errs...)
 	}()
 
 	if multiImgs {
-		err = downloadMultiImgsArtwork(ctx, anchorNode)
+		numberOfItems, err = downloadMultiImgsArtwork(ctx, anchorNode)
 	} else {
-		err = downloadSingleImgArtwork(ctx, anchorNode)
+		numberOfItems, err = downloadSingleImgArtwork(ctx, anchorNode)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to click on artwork image: %+v", err)
