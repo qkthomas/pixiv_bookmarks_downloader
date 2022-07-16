@@ -33,7 +33,7 @@ import (
 	"github.com/qkthomas/pixiv_bookmarks_downloader/pkg/config"
 )
 
-func ListenForNetworkEventAndDownloadBookmarkThumbnails(ctx context.Context) (waitFunc func(int) error) {
+func ListenForNetworkEventAndDownloadBookmarkThumbnails(ctx context.Context) (waitFunc func(common.UrlMap) error) {
 	//do not do duplicate download
 	var mutex sync.Mutex
 	downloadedUrls := make(map[string]struct{})
@@ -64,7 +64,7 @@ func ListenForNetworkEventAndDownloadBookmarkThumbnails(ctx context.Context) (wa
 	return listenForNetworkEventAndDownloadImages(ctx, urlMatcher)
 }
 
-func ListenForNetworkEventAndDownloadArtworkImage(ctx context.Context) (waitFunc func(int) error) {
+func ListenForNetworkEventAndDownloadArtworkImage(ctx context.Context) (waitFunc func(common.UrlMap) error) {
 	//do not do duplicate download
 	var mutex sync.Mutex
 	downloadedUrls := make(map[string]struct{})
@@ -96,24 +96,28 @@ func ListenForNetworkEventAndDownloadArtworkImage(ctx context.Context) (waitFunc
 }
 
 func listenForNetworkEventAndDownloadImages(ctx context.Context,
-	urlMatcher func(string) (string, bool)) (waitFunc func(int) error) {
+	urlMatcher func(string) (string, bool)) (waitFunc func(common.UrlMap) error) {
 
-	waitItemChan := make(chan struct{}, 100)
+	waitItemChan := make(chan string, 100)
 	var errs common.Errors
 	eventQueue := make(chan interface{}, 1000) //how big is enough?
 	var mutex sync.Mutex
 	var isEventQueueClosed bool
-	waitFunc = func(numberOfImg int) error {
+	waitFunc = func(urls common.UrlMap) error {
 		defer func() {
 			mutex.Lock()
 			close(eventQueue) //will it cause panic?
 			isEventQueueClosed = true
 			mutex.Unlock()
 		}()
-		fmt.Printf("waiting writing %d files to be done\n", numberOfImg)
+		fmt.Printf("waiting writing %d files to be done\n", len(urls))
 		fmt.Printf("debug: len(waitItemChan)=%d\n", len(waitItemChan))
-		for i := 1; i <= numberOfImg; i++ {
-			_ = <-waitItemChan
+		for len(urls) > 0 {
+			url := <-waitItemChan
+			_, ok := urls[url]
+			if ok {
+				delete(urls, url)
+			}
 		}
 		return errs.Get()
 	}
@@ -135,16 +139,17 @@ func listenForNetworkEventAndDownloadImages(ctx context.Context,
 				}
 
 				resp := ev.Response
-				filePath, toDownload := urlMatcher(resp.URL)
+				url := resp.URL
+				filePath, toDownload := urlMatcher(url)
 				if !toDownload {
 					continue
 				}
 
 				requestID := ev.RequestID
-				fmt.Printf("registering event: requestID: \"%s\", url=\"%s\"\n", requestID, resp.URL)
+				fmt.Printf("registering event: requestID: \"%s\", url=\"%s\"\n", requestID, url)
 				Manager.RegisterEvent(requestID, func() (selfRemove bool, err error) {
 					defer func() {
-						waitItemChan <- struct{}{}
+						waitItemChan <- url
 					}()
 					fmt.Printf("start writing to file: requestID: \"%s\", filePath=\"%s\"\n", requestID, filePath)
 					err = common.StartSavingResponseToFile(ctx, requestID, filePath)
